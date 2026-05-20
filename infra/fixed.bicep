@@ -398,8 +398,10 @@ resource apimDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
 }
 
 // ── Outputs ───────────────────────────────────────────────────────────────
+output appName           string = app.name
 output appUrl            string = 'https://${app.properties.defaultHostName}'
 output apimGatewayUrl    string = apim.properties.gatewayUrl
+output swaName           string = swa.name
 output swaDefaultHost    string = swa.properties.defaultHostname
 output sqlServerFqdn     string = sqlServer.properties.fullyQualifiedDomainName
 output storageAccName    string = storage.name
