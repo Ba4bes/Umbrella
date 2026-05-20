@@ -269,8 +269,10 @@ resource apimHealth 'Microsoft.ApiManagement/service/apis/operations@2023-09-01-
 // MISCONFIG #7: no diagnostic settings / no Log Analytics workspace
 
 // ── Outputs ───────────────────────────────────────────────────────────────
+output appName         string = app.name
 output appUrl          string = 'https://${app.properties.defaultHostName}'
 output apimGatewayUrl  string = apim.properties.gatewayUrl
+output swaName         string = swa.name
 output swaDefaultHost  string = swa.properties.defaultHostname
 output sqlServerFqdn   string = sqlServer.properties.fullyQualifiedDomainName
 output storageAccName  string = storage.name
