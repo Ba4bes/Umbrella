@@ -86,7 +86,7 @@ Create the service principal:
 az ad sp create-for-rbac `
   --name sp-umbrella-github `
   --role Contributor `
-  --scopes /subscriptions/9bd9cf0b-dfc1-4fd3-833c-9fdf4d49d9d2/resourceGroups/rg-umbrella-demo
+  --scopes /subscriptions/<YOUR_SUBSCRIPTION_ID>/resourceGroups/rg-umbrella-demo
 ```
 
 Note the `appId` (client ID) and `tenant` values from the output.
@@ -96,13 +96,13 @@ Add federated identity credentials for each branch that triggers the workflow:
 ```powershell
 # For the 'main' branch
 az ad app federated-credential create `
-  --id e88e9eb1-d16b-45a2-b58c-79a65c96af81 `
-  --parameters '{\"name\":\"github-main\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:Ba4bes/Umbrella:ref:refs/heads/main\",\"audiences\":[\"api://AzureADTokenExchange\"]}'
+  --id <APP_ID> `
+  --parameters '{"name":"github-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:Ba4bes/Umbrella:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
 
 # For the 'broken' branch
 az ad app federated-credential create `
-  --id e88e9eb1-d16b-45a2-b58c-79a65c96af81 `
-  --parameters '{\"name\":\"github-broken\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:Ba4bes/Umbrella:ref:refs/heads/broken\",\"audiences\":[\"api://AzureADTokenExchange\"]}'
+  --id <APP_ID> `
+  --parameters '{"name":"github-broken","issuer":"https://token.actions.githubusercontent.com","subject":"repo:Ba4bes/Umbrella:ref:refs/heads/broken","audiences":["api://AzureADTokenExchange"]}'
 ```
 
 Save the `appId`, `tenant`, and your subscription ID — you will use them as secrets in step 3.
@@ -123,7 +123,7 @@ This SP needs **no permissions** — its failed access is what triggers the Defe
 az ad sp create-for-rbac `
   --name sp-umbrella-kv-attacker `
   --role Reader `
-  --scopes /subscriptions/9bd9cf0b-dfc1-4fd3-833c-9fdf4d49d9d2/resourceGroups/rg-umbrella-demo
+  --scopes /subscriptions/<YOUR_SUBSCRIPTION_ID>/resourceGroups/rg-umbrella-demo
 ```
 
 Save the `appId` and `password` — you will use them in demo step 10.
@@ -654,5 +654,5 @@ az ad sp delete --id "<sp-umbrella-kv-attacker-appId>"
 
 **GitHub Actions deploy fails with OIDC / login error**
 - Confirm `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` secrets are set correctly.
-- Verify that a federated credential exists for the exact branch being pushed to (check with `az ad app federated-credential list --id e88e9eb1-d16b-45a2-b58c-79a65c96af81`).
+- Verify that a federated credential exists for the exact branch being pushed to (check with `az ad app federated-credential list --id <APP_ID>`).
 - Ensure the workflow job has `permissions: id-token: write` — this is required for OIDC token issuance.
