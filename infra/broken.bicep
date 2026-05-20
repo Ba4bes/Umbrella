@@ -265,6 +265,35 @@ resource apimHealth 'Microsoft.ApiManagement/service/apis/operations@2023-09-01-
   }
 }
 
+// CORS-only inbound policy so the Static Web App SPA can reach the API.
+// NOTE: deliberately NO <rate-limit> here — misconfig #5 (no rate limiting,
+// no subscription key) is preserved for the Defender for APIs demo.
+resource apimApiPolicy 'Microsoft.ApiManagement/service/apis/policies@2023-09-01-preview' = {
+  parent: apimApi
+  name: 'policy'
+  properties: {
+    format: 'xml'
+    value: '''
+<policies>
+  <inbound>
+    <base />
+    <cors allow-credentials="false">
+      <allowed-origins><origin>*</origin></allowed-origins>
+      <allowed-methods preflight-result-max-age="300">
+        <method>GET</method>
+        <method>POST</method>
+        <method>OPTIONS</method>
+      </allowed-methods>
+      <allowed-headers><header>*</header></allowed-headers>
+    </cors>
+  </inbound>
+  <backend><base /></backend>
+  <outbound><base /></outbound>
+  <on-error><base /></on-error>
+</policies>'''
+  }
+}
+
 // MISCONFIG #5: no rate-limiting policy set at API or product level
 // MISCONFIG #7: no diagnostic settings / no Log Analytics workspace
 
