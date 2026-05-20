@@ -37,7 +37,7 @@ param sqlLocation string = 'swedencentral'
 
 // ── Resource names ────────────────────────────────────────────────────────
 var planName      = '${prefix}-plan'
-var appName       = '${prefix}-api'
+var appName       = '${prefix}-api-nl'
 var swaName       = '${prefix}-swa'
 var sqlServerName = '${prefix}-sql'
 var sqlDbName     = 'UmbrellaDb'
