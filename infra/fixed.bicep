@@ -33,7 +33,7 @@ param kvAdminObjectId string
 param logRetentionDays int = 30
 
 @description('Azure region for SQL Server (override if the resource group region does not accept new SQL servers).')
-param sqlLocation string = 'eastus'
+param sqlLocation string = 'swedencentral'
 
 // ── Resource names ────────────────────────────────────────────────────────
 var planName      = '${prefix}-plan'
