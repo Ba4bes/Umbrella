@@ -87,14 +87,14 @@
     wordcloud2.js — MIT licence
     https://github.com/timdream/wordcloud2.js
   -->
-  <script src="https://unpkg.com/wordcloud2@1.2.2/src/wordcloud2.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/wordcloud2@1.2.2/src/wordcloud2.js"></script>
   <script>
     // ----------------------------------------------------------------
     // API_BASE is replaced at SWA build time via a staticwebapp.config.json
     // environment variable substitution, or set manually for local dev.
     // Format: https://<apim-name>.azure-api.net
     // ----------------------------------------------------------------
-    const API_BASE = (window.__API_BASE__ || '').replace(/\/$/, '');
+    const API_BASE = '__API_BASE__'.replace(/\/$/, '');
 
     const canvas   = document.getElementById('wc');
     const statusEl = document.getElementById('status');
