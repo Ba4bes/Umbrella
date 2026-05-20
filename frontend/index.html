@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Umbrella — Word Cloud</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    header { padding: 1.5rem; text-align: center; }
+    h1 { font-size: 2rem; color: #60a5fa; letter-spacing: 0.05em; }
+    p.sub { color: #9ca3af; font-size: 0.9rem; margin-top: 0.4rem; }
+    #canvas-wrap {
+      width: 100%;
+      max-width: 960px;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas#wc { display: block; }
+    form {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1.2rem 1.5rem;
+      width: 100%;
+      max-width: 480px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.65rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid #374151;
+      background: #1f2937;
+      color: #fff;
+      font-size: 1rem;
+    }
+    input[type="text"]:focus { outline: 2px solid #3b82f6; }
+    button {
+      padding: 0.65rem 1.4rem;
+      border-radius: 0.5rem;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #4b5563; cursor: not-allowed; }
+    #status { font-size: 0.78rem; color: #6b7280; padding-bottom: 1.2rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>&#9730; Umbrella</h1>
+    <p class="sub">Submit a word — watch it grow in real time</p>
+  </header>
+
+  <div id="canvas-wrap">
+    <canvas id="wc" width="960" height="520"></canvas>
+  </div>
+
+  <form id="word-form">
+    <input
+      id="word-input"
+      type="text"
+      placeholder="Enter a word…"
+      maxlength="50"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button type="submit" id="submit-btn">Submit</button>
+  </form>
+
+  <div id="status">Connecting…</div>
+
+  <!--
+    wordcloud2.js — MIT licence
+    https://github.com/timdream/wordcloud2.js
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/wordcloud2@1.2.2/src/wordcloud2.js"></script>
+  <script>
+    // ----------------------------------------------------------------
+    // API_BASE is replaced at SWA build time via a staticwebapp.config.json
+    // environment variable substitution, or set manually for local dev.
+    // Format: https://<apim-name>.azure-api.net
+    // ----------------------------------------------------------------
+    const API_BASE = (window.__API_BASE__ || '').replace(/\/$/, '');
+
+    const canvas   = document.getElementById('wc');
+    const statusEl = document.getElementById('status');
+    const form     = document.getElementById('word-form');
+    const input    = document.getElementById('word-input');
+    const btn      = document.getElementById('submit-btn');
+
+    let lastRenderHash = '';
+
+    function hashWords(data) {
+      return data.map(w => `${w.text}:${w.count}`).join(',');
+    }
+
+    function renderCloud(data) {
+      const list = data.map(({ text, count }) => [text, Math.max(count * 12, 14)]);
+      WordCloud(canvas, {
+        list,
+        gridSize: 10,
+        weightFactor: 1,
+        fontFamily: 'Segoe UI, Tahoma, sans-serif',
+        color: () => `hsl(${Math.floor(Math.random() * 360)}, 65%, 60%)`,
+        backgroundColor: '#0f0f0f',
+        rotateRatio: 0.3,
+        minSize: 10,
+        drawOutOfBound: false,
+      });
+    }
+
+    async function fetchWords() {
+      try {
+        const resp = await fetch(`${API_BASE}/words`, { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        const h = hashWords(data);
+        if (h !== lastRenderHash) {
+          lastRenderHash = h;
+          renderCloud(data);
+        }
+        statusEl.textContent =
+          `${data.length} word${data.length !== 1 ? 's' : ''} · refreshed ${new Date().toLocaleTimeString()}`;
+      } catch (err) {
+        statusEl.textContent = `Connection error: ${err.message}`;
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const word = input.value.trim();
+      if (!word) return;
+
+      btn.disabled = true;
+      try {
+        const resp = await fetch(`${API_BASE}/words`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word }),
+        });
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({}));
+          throw new Error(body.error ?? `HTTP ${resp.status}`);
+        }
+        input.value = '';
+        await fetchWords();
+      } catch (err) {
+        statusEl.textContent = `Submit error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Initial load + 3-second polling
+    fetchWords();
+    setInterval(fetchWords, 3000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+name: Security Scanning
+
+on:
+  push:
+    branches:
+      - main
+      - broken
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Weekly scan every Monday at 08:00 UTC
+    - cron: '0 8 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # ── CodeQL static analysis ────────────────────────────────────────────────
+  # Surfaces injection sinks (e.g. string-concat SQL in Program.cs) in the
+  # GitHub Security tab and Defender for DevOps blade.
+  codeql:
+    name: CodeQL (C#)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          # security-extended includes injection, path-traversal, SSRF queries
+          queries: security-extended
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Build for CodeQL
+        run: >
+          dotnet build backend/UmbrellaApi/UmbrellaApi.csproj
+          --configuration Debug
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:csharp'
+
+  # ── Dependency review ─────────────────────────────────────────────────────
+  # Blocks PRs that introduce vulnerable NuGet packages above the threshold.
+  # On the broken branch, Newtonsoft.Json 12.0.3 (CVE-2024-21907) will appear
+  # as a high-severity finding in the Defender for DevOps / Dependabot blade.
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          # Uncomment to hard-fail the PR on vulnerable deps:
+          # fail-on-scopes: runtime
+
+  # ── Microsoft Security DevOps — Bicep IaC scan ────────────────────────────
+  # Runs Checkov / PSRule on the Bicep files.
+  # broken.bicep will generate findings for public blob, open SQL firewall,
+  # disabled HTTPS, missing diagnostic settings, etc.
+  bicep-iac-scan:
+    name: Bicep IaC Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Microsoft Security DevOps
+        uses: microsoft/security-devops-action@v1
+        id: msdo
+        with:
+          categories: IaC
+        env:
+          GDN_CHECKOV_ENABLE: true
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.msdo.outputs.sarifFile }}
