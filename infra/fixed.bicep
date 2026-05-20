@@ -24,7 +24,9 @@ param sqlAdminLogin string = 'sqladmin'
 @secure()
 param sqlAdminPassword string
 
-@description('AAD object ID for the Key Vault admin access policy.')
+@description('AAD object ID for the Key Vault admin access policy. Must be a GUID, e.g. from: az ad signed-in-user show --query id -o tsv')
+@minLength(36)
+@maxLength(36)
 param kvAdminObjectId string
 
 @description('Log Analytics workspace retention in days.')

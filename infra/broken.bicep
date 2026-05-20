@@ -26,7 +26,9 @@ param sqlAdminLogin string = 'sqladmin'
 @secure()
 param sqlAdminPassword string
 
-@description('AAD object ID for the Key Vault access policy (admin user/group).')
+@description('AAD object ID for the Key Vault access policy (admin user/group). Must be a GUID, e.g. from: az ad signed-in-user show --query id -o tsv')
+@minLength(36)
+@maxLength(36)
 param kvAdminObjectId string
 
 // ── Resource names ────────────────────────────────────────────────────────
@@ -110,7 +112,7 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
   properties: {
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
-    minimalTlsVersion: '1.0'
+    minimalTlsVersion: '1.2'  // 1.0 rejected service-wide since 2024; misconfig #2 is the open firewall rule below
     publicNetworkAccess: 'Enabled'
   }
 }
