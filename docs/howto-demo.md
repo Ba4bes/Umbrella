@@ -2,21 +2,40 @@
 
 ## Contents
 
-1. [Prerequisites](#1-prerequisites)
-2. [One-time Azure setup](#2-one-time-azure-setup)
-3. [One-time GitHub setup](#3-one-time-github-setup)
-4. [Deploy the broken baseline](#4-deploy-the-broken-baseline)
-5. [Enable Defender for Cloud plans](#5-enable-defender-for-cloud-plans)
-6. [Verify the app is live](#6-verify-the-app-is-live)
-7. [Demo: SQL injection — Defender for Databases](#7-demo-sql-injection--defender-for-databases)
-8. [Demo: Malware upload — Defender for Storage](#8-demo-malware-upload--defender-for-storage)
-9. [Demo: API burst — Defender for APIs](#9-demo-api-burst--defender-for-apis)
-10. [Demo: Key Vault enumeration — Defender for Key Vault](#10-demo-key-vault-enumeration--defender-for-key-vault)
-11. [Demo: Shell execution — Defender for App Service](#11-demo-shell-execution--defender-for-app-service)
-12. [Demo: DevOps findings — Defender for DevOps / GHAS](#12-demo-devops-findings--defender-for-devops--ghas)
-13. [Demo: CSPM — Secure Score and attack paths](#13-demo-cspm--secure-score-and-attack-paths)
-14. [Switching to the fixed version (live remediation)](#14-switching-to-the-fixed-version-live-remediation)
-15. [Tear-down](#15-tear-down)
+- [Umbrella demo — setup and run guide](#umbrella-demo--setup-and-run-guide)
+  - [Contents](#contents)
+  - [1. Prerequisites](#1-prerequisites)
+  - [2. One-time Azure setup](#2-one-time-azure-setup)
+    - [2a. Create the resource group](#2a-create-the-resource-group)
+    - [2b. Create a service principal and configure OIDC for GitHub Actions](#2b-create-a-service-principal-and-configure-oidc-for-github-actions)
+    - [2c. Note your own AAD object ID (for the Key Vault admin access policy)](#2c-note-your-own-aad-object-id-for-the-key-vault-admin-access-policy)
+    - [2d. Create a second service principal for the Key Vault enumeration demo](#2d-create-a-second-service-principal-for-the-key-vault-enumeration-demo)
+  - [3. One-time GitHub setup](#3-one-time-github-setup)
+    - [3a. Create a `broken` branch](#3a-create-a-broken-branch)
+    - [3b. Add repository secrets](#3b-add-repository-secrets)
+    - [3c. Add repository variables](#3c-add-repository-variables)
+    - [3d. Connect the repository to Defender for Cloud (for the DevOps demo)](#3d-connect-the-repository-to-defender-for-cloud-for-the-devops-demo)
+  - [4. Deploy the broken baseline](#4-deploy-the-broken-baseline)
+    - [4a. Trigger the deploy workflow](#4a-trigger-the-deploy-workflow)
+    - [4b. Confirm resources are created](#4b-confirm-resources-are-created)
+    - [4c. Retrieve the APIM gateway URL](#4c-retrieve-the-apim-gateway-url)
+    - [4d. Get the Static Web Apps deployment token and save it](#4d-get-the-static-web-apps-deployment-token-and-save-it)
+    - [4e. Confirm the app is working](#4e-confirm-the-app-is-working)
+  - [5. Enable Defender for Cloud plans](#5-enable-defender-for-cloud-plans)
+  - [6. Verify the app is live](#6-verify-the-app-is-live)
+  - [7. Demo: SQL injection — Defender for Databases](#7-demo-sql-injection--defender-for-databases)
+  - [8. Demo: Malware upload — Defender for Storage](#8-demo-malware-upload--defender-for-storage)
+  - [9. Demo: API burst — Defender for APIs](#9-demo-api-burst--defender-for-apis)
+  - [10. Demo: Key Vault enumeration — Defender for Key Vault](#10-demo-key-vault-enumeration--defender-for-key-vault)
+  - [11. Demo: Shell execution — Defender for App Service](#11-demo-shell-execution--defender-for-app-service)
+  - [12. Demo: DevOps findings — Defender for DevOps / GHAS](#12-demo-devops-findings--defender-for-devops--ghas)
+  - [13. Demo: CSPM — Secure Score and attack paths](#13-demo-cspm--secure-score-and-attack-paths)
+  - [14. Switching to the fixed version (live remediation)](#14-switching-to-the-fixed-version-live-remediation)
+    - [Option A — push to main (full redeploy, ~10 minutes)](#option-a--push-to-main-full-redeploy-10-minutes)
+    - [Option B — deployment slot swap (near-instant, recommended for live demos)](#option-b--deployment-slot-swap-near-instant-recommended-for-live-demos)
+  - [15. Tear-down](#15-tear-down)
+  - [Quick-reference: alert timing](#quick-reference-alert-timing)
+  - [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -74,16 +93,16 @@ Note the `appId` (client ID) and `tenant` values from the output.
 
 Add federated identity credentials for each branch that triggers the workflow:
 
-```bash
+```powershell
 # For the 'main' branch
 az ad app federated-credential create `
-  --id <appId> `
-  --parameters '{"name":"github-main","issuer":"https://token.actions.githubusercontent.com","subject":"repo:Ba4bes/Umbrella:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
+  --id e88e9eb1-d16b-45a2-b58c-79a65c96af81 `
+  --parameters '{\"name\":\"github-main\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:Ba4bes/Umbrella:ref:refs/heads/main\",\"audiences\":[\"api://AzureADTokenExchange\"]}'
 
 # For the 'broken' branch
 az ad app federated-credential create `
-  --id <appId> `
-  --parameters '{"name":"github-broken","issuer":"https://token.actions.githubusercontent.com","subject":"repo:Ba4bes/Umbrella:ref:refs/heads/broken","audiences":["api://AzureADTokenExchange"]}'
+  --id e88e9eb1-d16b-45a2-b58c-79a65c96af81 `
+  --parameters '{\"name\":\"github-broken\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"repo:Ba4bes/Umbrella:ref:refs/heads/broken\",\"audiences\":[\"api://AzureADTokenExchange\"]}'
 ```
 
 Save the `appId`, `tenant`, and your subscription ID — you will use them as secrets in step 3.
@@ -135,6 +154,23 @@ Go to **Settings → Secrets and variables → Actions → Secrets** and add:
 | `KV_ADMIN_OBJECT_ID` | Object ID from step 2c |
 | `SWA_DEPLOYMENT_TOKEN` | Leave blank for now — you will fill it after the first Bicep deploy (step 4d) |
 
+Or use the GitHub CLI (prompts for each value interactively):
+
+```bash
+gh secret set AZURE_CLIENT_ID
+gh secret set AZURE_TENANT_ID
+gh secret set AZURE_SUBSCRIPTION_ID
+gh secret set SQL_ADMIN_PASSWORD
+gh secret set KV_ADMIN_OBJECT_ID
+gh secret set SWA_DEPLOYMENT_TOKEN   # leave blank for now; update after step 4d
+```
+
+Alternatively, populate all secrets at once from a `.env` file:
+
+```bash
+gh secret set --env-file .env
+```
+
 ### 3c. Add repository variables
 
 Go to **Settings → Secrets and variables → Actions → Variables** and add:
@@ -143,6 +179,13 @@ Go to **Settings → Secrets and variables → Actions → Variables** and add:
 |---|---|
 | `AZURE_RG` | `rg-umbrella-demo` |
 | `AZURE_WEBAPP_NAME` | `umbrella-api` (must match the `prefix` parameter in the Bicep files) |
+
+Or use the GitHub CLI:
+
+```bash
+gh variable set AZURE_RG --body "rg-umbrella-demo"
+gh variable set AZURE_WEBAPP_NAME --body "umbrella-api"
+```
 
 ### 3d. Connect the repository to Defender for Cloud (for the DevOps demo)
 
@@ -163,6 +206,12 @@ git commit --allow-empty -m "chore: trigger broken baseline deploy"
 git push
 ```
 
+Or trigger the workflow directly without a commit:
+
+```bash
+gh workflow run deploy.yml --ref broken
+```
+
 This triggers `.github/workflows/deploy.yml`, which:
 
 1. Builds and publishes the .NET 10 app.
@@ -170,7 +219,11 @@ This triggers `.github/workflows/deploy.yml`, which:
 3. Zip-deploys the app to the App Service.
 4. Deploys the frontend to Static Web Apps.
 
-Watch progress at **GitHub → Actions**.
+Watch progress at **GitHub → Actions**, or follow it in the terminal:
+
+```bash
+gh run watch
+```
 
 ### 4b. Confirm resources are created
 
@@ -205,6 +258,19 @@ az staticwebapp secrets list `
 ```
 
 Paste this value into the `SWA_DEPLOYMENT_TOKEN` GitHub secret (Settings → Secrets), then re-run the workflow (Actions → Deploy Umbrella → Re-run all jobs) so the frontend deploys with the token.
+
+Or use the GitHub CLI:
+
+```bash
+SWA_TOKEN=$(az staticwebapp secrets list \
+  --name umbrella-swa \
+  --resource-group rg-umbrella-demo \
+  --query "properties.apiKey" \
+  --output tsv)
+
+gh secret set SWA_DEPLOYMENT_TOKEN --body "$SWA_TOKEN"
+gh run rerun --failed
+```
 
 ### 4e. Confirm the app is working
 
@@ -422,9 +488,23 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
 1. In GitHub, open **Security → Code scanning alerts**.
    - Show the CodeQL finding: `Database query built from user-controlled sources` in [backend/UmbrellaApi/Program.cs](../backend/UmbrellaApi/Program.cs).
 
+   Or via the GitHub CLI:
+
+   ```bash
+   gh api repos/Ba4bes/Umbrella/code-scanning/alerts \
+     --jq '.[] | {number,rule_id:.rule.id,severity:.rule.severity,file:.most_recent_instance.location.path}'
+   ```
+
 2. Open **Security → Dependabot alerts**.
    - Show the `Newtonsoft.Json 12.0.3` alert for CVE-2024-21907 (ReDoS, high severity).
    - Note the fix: upgrade to ≥ 13.0.1.
+
+   Or via the GitHub CLI:
+
+   ```bash
+   gh api repos/Ba4bes/Umbrella/dependabot/alerts \
+     --jq '.[] | {number,package:.dependency.package.name,severity:.security_vulnerability.severity,summary:.security_advisory.summary}'
+   ```
 
 3. Open **Security → Code scanning alerts** and filter by tool `MSDO` (or `Checkov`).
    - Show the IaC findings on [infra/broken.bicep](../infra/broken.bicep):
@@ -432,6 +512,13 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
      - SQL firewall open to `0.0.0.0/0`.
      - App Service HTTPS not enforced.
      - No diagnostic settings.
+
+   Or via the GitHub CLI:
+
+   ```bash
+   gh api repos/Ba4bes/Umbrella/code-scanning/alerts -f tool_name=Checkov \
+     --jq '.[] | {number,rule_id:.rule.id,file:.most_recent_instance.location.path}'
+   ```
 
 4. In the Azure Portal open **Defender for Cloud → DevOps security**.
    - Show the same findings surfaced from GitHub, with links back to the file and line number.
@@ -567,5 +654,5 @@ az ad sp delete --id "<sp-umbrella-kv-attacker-appId>"
 
 **GitHub Actions deploy fails with OIDC / login error**
 - Confirm `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` secrets are set correctly.
-- Verify that a federated credential exists for the exact branch being pushed to (check with `az ad app federated-credential list --id <appId>`).
+- Verify that a federated credential exists for the exact branch being pushed to (check with `az ad app federated-credential list --id e88e9eb1-d16b-45a2-b58c-79a65c96af81`).
 - Ensure the workflow job has `permissions: id-token: write` — this is required for OIDC token issuance.
