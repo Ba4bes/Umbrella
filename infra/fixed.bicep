@@ -32,6 +32,9 @@ param kvAdminObjectId string
 @description('Log Analytics workspace retention in days.')
 param logRetentionDays int = 30
 
+@description('Azure region for SQL Server (override if the resource group region does not accept new SQL servers).')
+param sqlLocation string = 'eastus'
+
 // ── Resource names ────────────────────────────────────────────────────────
 var planName      = '${prefix}-plan'
 var appName       = '${prefix}-api'
@@ -140,7 +143,7 @@ resource swa 'Microsoft.Web/staticSites@2023-12-01' = {
 // ── SQL Server ────────────────────────────────────────────────────────────
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
   name: sqlServerName
-  location: location
+  location: sqlLocation
   properties: {
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
@@ -152,7 +155,7 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
 resource sqlDb 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   parent: sqlServer
   name: sqlDbName
-  location: location
+  location: sqlLocation
   sku: {
     name: 'Basic'
     tier: 'Basic'
