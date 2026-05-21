@@ -54,7 +54,7 @@
 
   <div id="qr-section">
     <p>Scan to submit a word</p>
-    <canvas id="qr-canvas"></canvas>
+    <div id="qr-canvas"></div>
     <span id="qr-url"></span>
   </div>
 
@@ -64,10 +64,10 @@
   -->
   <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
   <!--
-    qrcode — MIT licence
-    https://github.com/soldair/node-qrcode
+    qrcodejs — MIT licence
+    https://github.com/davidshimjs/qrcodejs
   -->
-  <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     // ----------------------------------------------------------------
     // API_BASE is replaced at SWA deploy time via the Azure Static Web Apps
@@ -121,9 +121,13 @@
     // Generate QR code pointing to the /submit page on this same origin
     const submitUrl = window.location.origin + '/submit';
     document.getElementById('qr-url').textContent = submitUrl;
-    QRCode.toCanvas(document.getElementById('qr-canvas'), submitUrl, {
+    new QRCode(document.getElementById('qr-canvas'), {
+      text: submitUrl,
       width: 180,
-      color: { dark: '#ffffff', light: '#0f0f0f' },
+      height: 180,
+      colorDark: '#ffffff',
+      colorLight: '#0f0f0f',
+      correctLevel: QRCode.CorrectLevel.H,
     });
 
     // Initial load + 3-second polling
