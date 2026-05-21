@@ -54,11 +54,11 @@ A **Defender for Cloud** demo built around a live word-cloud app. Attendees subm
 
 | Secret / Variable | Purpose |
 |---|---|
-| `AZURE_CREDENTIALS` | Service principal JSON for `azure/login` |
+| `AZURE_CLIENT_ID` | Service principal client ID for OIDC login |
+| `AZURE_TENANT_ID` | Azure AD tenant ID for OIDC login |
+| `AZURE_SUBSCRIPTION_ID` | Target Azure subscription ID |
 | `SQL_ADMIN_PASSWORD` | SQL Server admin password |
 | `KV_ADMIN_OBJECT_ID` | Object ID for Key Vault admin access policy |
-| `SWA_DEPLOYMENT_TOKEN` | Static Web Apps deployment token |
-| `vars.AZURE_WEBAPP_NAME` | App Service name |
 | `vars.AZURE_RG` | Target resource group name |
 
 ## Switching broken ↔ fixed

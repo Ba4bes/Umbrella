@@ -265,6 +265,16 @@ resource apimHealth 'Microsoft.ApiManagement/service/apis/operations@2023-09-01-
   }
 }
 
+resource apimDeleteWords 'Microsoft.ApiManagement/service/apis/operations@2023-09-01-preview' = {
+  parent: apimApi
+  name: 'delete-words'
+  properties: {
+    displayName: 'Reset Words'
+    method: 'DELETE'
+    urlTemplate: '/words'
+  }
+}
+
 // CORS-only inbound policy so the Static Web App SPA can reach the API.
 // NOTE: deliberately NO <rate-limit> here — misconfig #5 (no rate limiting,
 // no subscription key) is preserved for the Defender for APIs demo.
@@ -282,6 +292,7 @@ resource apimApiPolicy 'Microsoft.ApiManagement/service/apis/policies@2023-09-01
       <allowed-methods preflight-result-max-age="300">
         <method>GET</method>
         <method>POST</method>
+        <method>DELETE</method>
         <method>OPTIONS</method>
       </allowed-methods>
       <allowed-headers><header>*</header></allowed-headers>

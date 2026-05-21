@@ -341,7 +341,7 @@ resource apimApiPolicy 'Microsoft.ApiManagement/service/apis/policies@2023-09-01
     <rate-limit calls="30" renewal-period="60" />
     <cors allow-credentials="false">
       <allowed-origins><origin>*</origin></allowed-origins>
-      <allowed-methods><method>GET</method><method>POST</method></allowed-methods>
+      <allowed-methods><method>GET</method><method>POST</method><method>DELETE</method><method>OPTIONS</method></allowed-methods>
       <allowed-headers><header>Content-Type</header></allowed-headers>
     </cors>
   </inbound>
@@ -379,6 +379,16 @@ resource apimHealth 'Microsoft.ApiManagement/service/apis/operations@2023-09-01-
     displayName: 'Health Check'
     method: 'GET'
     urlTemplate: '/health'
+  }
+}
+
+resource apimDeleteWords 'Microsoft.ApiManagement/service/apis/operations@2023-09-01-preview' = {
+  parent: apimApi
+  name: 'delete-words'
+  properties: {
+    displayName: 'Reset Words'
+    method: 'DELETE'
+    urlTemplate: '/words'
   }
 }
 
