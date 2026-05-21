@@ -1,12 +1,16 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": []
+    "exclude": ["/submit", "/submit.html"]
   },
   "globalHeaders": {
     "Cache-Control": "no-store, no-cache"
   },
   "routes": [
+    {
+      "route": "/submit",
+      "rewrite": "/submit.html"
+    },
     {
       "route": "/*",
       "headers": {

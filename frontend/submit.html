@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Umbrella — Add a Word</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    header { text-align: center; }
+    h1 { font-size: 2rem; color: #60a5fa; letter-spacing: 0.05em; }
+    p.sub { color: #9ca3af; font-size: 0.9rem; margin-top: 0.4rem; }
+    form {
+      display: flex;
+      gap: 0.5rem;
+      width: 100%;
+      max-width: 480px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid #374151;
+      background: #1f2937;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+    input[type="text"]:focus { outline: 2px solid #3b82f6; }
+    button {
+      padding: 0.75rem 1.6rem;
+      border-radius: 0.5rem;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      white-space: nowrap;
+    }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #4b5563; cursor: not-allowed; }
+    #status {
+      font-size: 0.9rem;
+      min-height: 1.4rem;
+      color: #6b7280;
+      text-align: center;
+    }
+    #status.success { color: #34d399; }
+    #status.error   { color: #f87171; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>&#9730; Umbrella</h1>
+    <p class="sub">Add your word to the live cloud</p>
+  </header>
+
+  <form id="word-form">
+    <input
+      id="word-input"
+      type="text"
+      placeholder="Enter a word…"
+      maxlength="50"
+      autocomplete="off"
+      spellcheck="false"
+      autofocus
+    />
+    <button type="submit" id="submit-btn">Submit</button>
+  </form>
+
+  <div id="status"></div>
+
+  <script>
+    // ----------------------------------------------------------------
+    // API_BASE is replaced at SWA deploy time via the Azure Static Web Apps
+    // app setting "API_BASE" (Azure Portal → SWA → Configuration).
+    // Format: https://<apim-name>.azure-api.net
+    // For local dev, replace '__API_BASE__' with the actual URL here.
+    // ----------------------------------------------------------------
+    const API_BASE = '__API_BASE__'.replace(/\/$/, '');
+
+    const form     = document.getElementById('word-form');
+    const input    = document.getElementById('word-input');
+    const btn      = document.getElementById('submit-btn');
+    const statusEl = document.getElementById('status');
+
+    function setStatus(msg, type = '') {
+      statusEl.textContent = msg;
+      statusEl.className = type;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const word = input.value.trim();
+      if (!word) return;
+
+      btn.disabled = true;
+      setStatus('Submitting…');
+
+      try {
+        const resp = await fetch(`${API_BASE}/words`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word }),
+        });
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({}));
+          throw new Error(body.error ?? `HTTP ${resp.status}`);
+        }
+        input.value = '';
+        setStatus('Word added!', 'success');
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        input.focus();
+      }
+    });
+  </script>
+</body>
+</html>

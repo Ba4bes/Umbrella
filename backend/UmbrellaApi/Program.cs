@@ -87,6 +87,15 @@ app.MapPost("/words", async (WordInput input) =>
     return Results.Ok(new { message = "Word recorded." });
 });
 
+// ── DELETE /words ─────────────────────────────────────────────────────────
+// Clears the entire word cloud (all rows in the Words table).
+// Use this to reset between demo runs.
+app.MapDelete("/words", async (WordsDbContext db) =>
+{
+    await db.Words.ExecuteDeleteAsync();
+    return Results.Ok(new { message = "Word cloud reset." });
+});
+
 // ── GET /debug/exec (BROKEN BASELINE ONLY) ───────────────────────────────
 // INTENTIONAL VULNERABILITY: executes the `cmd` query-string parameter as a
 // shell command on the App Service Linux container.

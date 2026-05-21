@@ -67,3 +67,77 @@ A **Defender for Cloud** demo built around a live word-cloud app. Attendees subm
 - Branch `main` → deploys `infra/fixed.bicep` (all remediations applied)
 
 Use **deployment slots** on the same App Service to flip live during the demo.
+
+## Deployed URLs
+
+All resource names are built from the `prefix` Bicep parameter (default: `umbrella`). Substitute your prefix if you deployed with a custom value.
+
+| Resource | URL |
+|---|---|
+| Frontend (SWA display page) | `https://umbrella-swa.azurestaticapps.net` |
+| Audience submit page | `https://umbrella-swa.azurestaticapps.net/submit` |
+| API gateway (APIM) | `https://umbrella-apim.azure-api.net` |
+| Backend direct (App Service) | `https://umbrella-api-nl.azurewebsites.net` |
+| Health check | `https://umbrella-apim.azure-api.net/health` |
+
+> **Note:** The SWA hostname is auto-generated (`<hash>.azurestaticapps.net`). Find the real URL in the Azure Portal → Static Web Apps → `umbrella-swa` → **URL**.
+
+## Resetting the word cloud
+
+Between demo runs, clear all submitted words with:
+
+```bash
+curl -X DELETE https://umbrella-apim.azure-api.net/words
+```
+
+The display page picks up the empty state within 3 seconds (next poll).
+
+**Manual fallback** via Azure Portal → SQL databases → `UmbrellaDb` → Query editor:
+
+```sql
+DELETE FROM Words;
+```
+
+## Post-deployment checklist
+
+Run these after `deploy.yml` completes to confirm everything is wired up.
+
+```bash
+APIM=https://umbrella-apim.azure-api.net
+
+# 1. Health
+curl "$APIM/health"
+# Expected: {"status":"healthy", ...}
+
+# 2. Submit a word
+curl -X POST "$APIM/words" -H "Content-Type: application/json" -d '{"word":"test"}'
+# Expected: {"message":"Word recorded."}
+
+# 3. Verify it appears
+curl "$APIM/words"
+# Expected: [{"text":"test","count":1}]
+
+# 4. Reset
+curl -X DELETE "$APIM/words"
+# Expected: {"message":"Word cloud reset."}
+
+# 5. Confirm empty
+curl "$APIM/words"
+# Expected: []
+```
+
+Then open the frontend URLs in a browser:
+
+- **Display page** → word cloud canvas and QR code are visible
+- **Submit page** (`/submit`) → word input form works; submitted word appears on the display page within 3 seconds
+
+**Broken-baseline only:**
+
+```bash
+# 6. Debug exec (triggers Defender for App Service alert)
+curl "https://umbrella-api-nl.azurewebsites.net/debug/exec?cmd=whoami"
+
+# 7. SQL injection (triggers Defender for Databases alert)
+curl -X POST "$APIM/words" -H "Content-Type: application/json" \
+  -d "{'word':"'; DROP TABLE Words;--"}"
+```
