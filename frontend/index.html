@@ -198,17 +198,38 @@
 
     const brandColors = ['#7C63A8', '#A688D4', '#3AAFA9', '#60CECA', '#C47F55'];
 
+    // Font size range (px) tuned for up to ~50 entries:
+    // the most-voted word gets MAX_FONT, the least-voted gets MIN_FONT.
+    const MIN_FONT = 18;
+    const MAX_FONT = 80;
+
     function renderCloud(data) {
-      const list = data.map(({ text, count }) => [text, Math.max(count * 12, 14)]);
+      if (data.length === 0) return;
+
+      // Sort highest count first so normalization is stable.
+      const entries = [...data].sort((a, b) => b.count - a.count);
+
+      // Normalize counts to [MIN_FONT, MAX_FONT] so the cloud always fills
+      // the canvas well regardless of how spread the counts are.
+      const maxCount = entries[0].count;
+      const minCount = entries[entries.length - 1].count;
+      const countRange = maxCount - minCount || 1;
+
+      const list = entries.map(({ text, count }) => {
+        const normalized = (count - minCount) / countRange;
+        const size = Math.round(MIN_FONT + normalized * (MAX_FONT - MIN_FONT));
+        return [text, size];
+      });
+
       WordCloud(canvas, {
         list,
-        gridSize: 10,
+        gridSize: 8,
         weightFactor: 1,
         fontFamily: "'Sora', system-ui, sans-serif",
         color: () => brandColors[Math.floor(Math.random() * brandColors.length)],
         backgroundColor: '#1A1714',
         rotateRatio: 0.3,
-        minSize: 10,
+        minSize: MIN_FONT,
         drawOutOfBound: false,
       });
     }
