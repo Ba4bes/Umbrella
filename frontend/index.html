@@ -198,22 +198,19 @@
 
     const brandColors = ['#7C63A8', '#A688D4', '#3AAFA9', '#60CECA', '#C47F55'];
 
-    // Maximum number of words to display in the cloud
-    const MAX_ENTRIES = 50;
-    // Font size range (px) — top word gets MAX_FONT, least frequent gets MIN_FONT
+    // Font size range (px) tuned for up to ~50 entries:
+    // the most-voted word gets MAX_FONT, the least-voted gets MIN_FONT.
     const MIN_FONT = 18;
     const MAX_FONT = 80;
 
     function renderCloud(data) {
-      // Take the top MAX_ENTRIES words by count, highest first
-      const entries = [...data]
-        .sort((a, b) => b.count - a.count)
-        .slice(0, MAX_ENTRIES);
+      if (data.length === 0) return;
 
-      if (entries.length === 0) return;
+      // Sort highest count first so normalization is stable.
+      const entries = [...data].sort((a, b) => b.count - a.count);
 
       // Normalize counts to [MIN_FONT, MAX_FONT] so the cloud always fills
-      // the canvas well regardless of how many entries are shown.
+      // the canvas well regardless of how spread the counts are.
       const maxCount = entries[0].count;
       const minCount = entries[entries.length - 1].count;
       const countRange = maxCount - minCount || 1;
