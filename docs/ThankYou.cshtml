@@ -1,0 +1,84 @@
+@page "/thankyou"
+@model PollPoll.Pages.ThankYouModel
+@{
+    ViewData["Title"] = "Thank You";
+}
+
+<div class="thank-you-container text-center" style="max-width: 600px; margin: 50px auto; padding: 30px;">
+    <h1 style="color: var(--iris); margin-bottom: 30px;">
+        <i class="bi bi-check-circle-fill" style="font-size: 3rem; display: block; margin-bottom: 20px; color: var(--teal);"></i>
+        Thank You!
+    </h1>
+
+    @if (Model.IsPartOfGroup && Model.PollGroup != null)
+    {
+        <!-- Question Group Response -->
+        <div class="group-response">
+            <p class="lead" style="margin-bottom: 30px;">Your response has been recorded.</p>
+
+            <div class="progress-info" style="margin: 30px 0;">
+                <p style="font-size: 1.1rem; margin-bottom: 15px;">
+                    You've answered <strong>@Model.TotalAnswered</strong> of <strong>@Model.TotalInGroup</strong> questions
+                    in this survey.
+                </p>
+            </div>
+
+            <div class="navigation-buttons" style="margin-top: 30px;">
+                @{
+                    var pollsInGroup = Model.PollGroup.Polls.OrderBy(p => p.DisplayOrder).ToList();
+                    var currentIndex = pollsInGroup.FindIndex(p => p.Id == Model.Poll!.Id);
+                    var hasNext = currentIndex < pollsInGroup.Count - 1;
+                    var nextPoll = hasNext ? pollsInGroup[currentIndex + 1] : null;
+                }
+
+                @if (hasNext && nextPoll != null)
+                {
+                    <a href="/p/@nextPoll.Code" class="btn btn-primary btn-lg" style="margin: 10px;">
+                        <i class="bi bi-arrow-right-circle"></i> Next Question
+                    </a>
+                }
+                else
+                {
+                    <p style="color: var(--teal); font-weight: bold; margin-bottom: 20px;">
+                        <i class="bi bi-trophy-fill"></i> You've completed all questions!
+                    </p>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Single Question Response -->
+        <div class="single-response">
+            <p class="lead" style="margin-bottom: 30px;">Your vote has been recorded!</p>
+
+            <!-- Social Media Links -->
+            <div class="social-links" style="margin: 40px 0;">
+                <p style="margin-bottom: 20px; font-size: 1.1rem;">Connect with me:</p>
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <a href="https://www.linkedin.com/in/baforbes/" target="_blank" class="btn btn-outline-primary"
+                        aria-label="LinkedIn">
+                        <i class="bi bi-linkedin" style="font-size: 1.5rem;"></i>
+                    </a>
+                    <a href="https://github.com/Ba4bes" target="_blank" class="btn btn-outline-primary" aria-label="GitHub">
+                        <i class="bi bi-github" style="font-size: 1.5rem;"></i>
+                    </a>
+                    <a href="https://www.instagram.com/ba4bes/" target="_blank" class="btn btn-outline-primary"
+                        aria-label="Instagram">
+                        <i class="bi bi-instagram" style="font-size: 1.5rem;"></i>
+                    </a>
+                    <a href="https://www.youtube.com/@@ba4bes" target="_blank" class="btn btn-outline-primary"
+                        aria-label="YouTube">
+                        <i class="bi bi-youtube" style="font-size: 1.5rem;"></i>
+                    </a>
+                </div>
+                <p style="margin-top: 20px;">
+                    <a href="https://ba4bes.com" target="_blank"
+                        style="color: var(--iris); text-decoration: none;">https://ba4bes.com</a>
+                </p>
+            </div>
+
+
+        </div>
+    }
+</div>

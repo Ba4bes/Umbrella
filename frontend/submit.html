@@ -4,81 +4,235 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Umbrella — Add a Word</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --iris:       #7C63A8;
+      --iris-soft:  #A688D4;
+      --iris-deep:  #5C4888;
+      --teal:       #3AAFA9;
+      --teal-soft:  #60CECA;
+      --amber:      #C47F55;
+      --bg:         #1A1714;
+      --surface:    #231F1B;
+      --surface-2:  #2D2924;
+      --border:     #3D3830;
+      --text-1:     #F0E8DC;
+      --text-2:     #9A9088;
+      --text-3:     #6A6258;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: #0f0f0f;
-      color: #fff;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
       gap: 1.5rem;
-      padding: 2rem;
     }
-    header { text-align: center; }
-    h1 { font-size: 2rem; color: #60a5fa; letter-spacing: 0.05em; }
-    p.sub { color: #9ca3af; font-size: 0.9rem; margin-top: 0.4rem; }
-    form {
+
+    .eyebrow {
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 0.68rem;
+      color: var(--teal);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-family: 'Sora', system-ui, sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--iris);
+      letter-spacing: -0.02em;
+      text-align: center;
+    }
+
+    p.sub {
+      font-size: 0.95rem;
+      color: var(--text-2);
+      text-align: center;
+      line-height: 1.65;
+    }
+
+    #word-form {
       display: flex;
       gap: 0.5rem;
       width: 100%;
-      max-width: 480px;
     }
+
     input[type="text"] {
       flex: 1;
       padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
-      border: 1px solid #374151;
-      background: #1f2937;
-      color: #fff;
-      font-size: 1.1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-1);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    input[type="text"]:focus { outline: 2px solid #3b82f6; }
-    button {
-      padding: 0.75rem 1.6rem;
-      border-radius: 0.5rem;
-      background: #3b82f6;
+
+    input[type="text"]::placeholder { color: var(--text-3); }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--iris);
+      box-shadow: 0 0 0 3px rgba(124, 99, 168, 0.18);
+    }
+
+    .btn-primary {
+      padding: 0.55rem 1.3rem;
+      border-radius: 8px;
+      background: var(--iris);
       color: #fff;
       border: none;
-      cursor: pointer;
-      font-size: 1.1rem;
-      white-space: nowrap;
-    }
-    button:hover { background: #2563eb; }
-    button:disabled { background: #4b5563; cursor: not-allowed; }
-    #status {
+      font-family: 'DM Sans', sans-serif;
       font-size: 0.9rem;
-      min-height: 1.4rem;
-      color: #6b7280;
-      text-align: center;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
     }
-    #status.success { color: #34d399; }
-    #status.error   { color: #f87171; }
+
+    .btn-primary:hover { background: var(--iris-deep); }
+
+    .btn-primary:disabled {
+      background: var(--border);
+      color: var(--text-3);
+      cursor: not-allowed;
+    }
+
+    #status {
+      font-size: 0.82rem;
+      color: var(--text-3);
+      text-align: center;
+      min-height: 1.2rem;
+    }
+
+    #status.error { color: #E06C75; }
+
+    /* ── Thank you section ─────────────────────────────────── */
+    #thankyou-section { display: none; width: 100%; }
+
+    #thankyou-section.visible {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .check-icon {
+      font-size: 3rem;
+      color: var(--teal);
+      line-height: 1;
+    }
+
+    .social-grid {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-social {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      text-decoration: none;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .btn-social:hover {
+      border-color: var(--iris);
+      color: var(--iris);
+    }
+
+    .site-link {
+      font-size: 0.88rem;
+      color: var(--iris);
+      text-decoration: none;
+    }
+
+    .site-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>&#9730; Umbrella</h1>
-    <p class="sub">Add your word to the live cloud</p>
-  </header>
+  <div class="card">
 
-  <form id="word-form">
-    <input
-      id="word-input"
-      type="text"
-      placeholder="Enter a word…"
-      maxlength="50"
-      autocomplete="off"
-      spellcheck="false"
-      autofocus
-    />
-    <button type="submit" id="submit-btn">Submit</button>
-  </form>
+    <!-- Submit form — hidden after successful submission -->
+    <div id="form-section" style="display:flex;flex-direction:column;align-items:center;gap:1.5rem;width:100%;">
+      <span class="eyebrow">Word cloud</span>
+      <h1>&#9730; Umbrella</h1>
+      <p class="sub">Add your word to the live cloud</p>
 
-  <div id="status"></div>
+      <form id="word-form">
+        <input
+          id="word-input"
+          type="text"
+          placeholder="Enter a word…"
+          maxlength="50"
+          autocomplete="off"
+          spellcheck="false"
+          autofocus
+        />
+        <button type="submit" id="submit-btn" class="btn-primary">Submit</button>
+      </form>
+
+      <div id="status"></div>
+    </div>
+
+    <!-- Thank you — shown after successful submission -->
+    <div id="thankyou-section">
+      <span class="check-icon">✓</span>
+      <h1>Thank you!</h1>
+      <p class="sub">Your word has been added to the cloud.</p>
+
+      <span class="eyebrow">Connect with me</span>
+      <div class="social-grid">
+        <a href="https://www.linkedin.com/in/baforbes/" target="_blank" class="btn-social" aria-label="LinkedIn">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 0H5C2.24 0 0 2.24 0 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5V5c0-2.76-2.24-5-5-5zM8 19H5V8h3v11zm-1.5-12.27c-.97 0-1.75-.79-1.75-1.75S5.53 3.23 6.5 3.23s1.75.79 1.75 1.75S7.47 6.73 6.5 6.73zM20 19h-3v-5.6c0-1.34-.47-2.25-1.65-2.25-.9 0-1.43.6-1.67 1.18-.09.21-.11.5-.11.79V19h-3s.04-9 0-11h3v1.56c.4-.61 1.11-1.48 2.7-1.48 1.97 0 3.44 1.29 3.44 4.06V19z"/></svg>
+        </a>
+        <a href="https://github.com/Ba4bes" target="_blank" class="btn-social" aria-label="GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.11.82-.26.82-.58v-2.04c-3.34.72-4.04-1.61-4.04-1.61-.54-1.38-1.33-1.74-1.33-1.74-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.48.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02.005 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.65.24 2.87.12 3.17.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.69.82.57C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        </a>
+        <a href="https://www.instagram.com/ba4bes/" target="_blank" class="btn-social" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.334 3.608 1.308.975.975 1.246 2.242 1.308 3.608.058 1.265.07 1.645.07 4.851 0 3.204-.012 3.584-.07 4.85-.062 1.366-.334 2.633-1.308 3.608-.975.975-2.242 1.246-3.608 1.308-1.265.058-1.645.07-4.85.07-3.204 0-3.584-.012-4.85-.07-1.366-.062-2.633-.334-3.608-1.308-.975-.975-1.246-2.242-1.308-3.608C2.175 15.747 2.163 15.367 2.163 12c0-3.204.012-3.584.07-4.85.062-1.366.334-2.633 1.308-3.608.975-.975 2.242-1.246 3.608-1.308C8.416 2.175 8.796 2.163 12 2.163zm0-2.163C8.74 0 8.333.014 7.053.072 5.773.13 4.548.392 3.464 1.464 2.392 2.548 2.13 3.773 2.072 5.053.014 8.333 0 8.74 0 12c0 3.259.014 3.668.072 4.948.058 1.28.32 2.505 1.392 3.588 1.084 1.072 2.309 1.334 3.589 1.392C8.333 23.986 8.74 24 12 24c3.259 0 3.668-.014 4.948-.072 1.28-.058 2.505-.32 3.588-1.392 1.072-1.083 1.334-2.308 1.392-3.588C23.986 15.668 24 15.259 24 12c0-3.259-.014-3.668-.072-4.947-.058-1.28-.32-2.506-1.392-3.589C21.453.392 20.228.13 18.948.072 17.668.014 17.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+        </a>
+        <a href="https://www.youtube.com/@ba4bes" target="_blank" class="btn-social" aria-label="YouTube">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.54 3.5 12 3.5 12 3.5s-7.54 0-9.38.55a3.02 3.02 0 0 0-2.12 2.14C0 8.04 0 12 0 12s0 3.96.5 5.81a3.02 3.02 0 0 0 2.12 2.14C4.46 20.5 12 20.5 12 20.5s7.54 0 9.38-.55a3.02 3.02 0 0 0 2.12-2.14C24 15.96 24 12 24 12s0-3.96-.5-5.81zM9.75 15.5V8.5l6.25 3.5-6.25 3.5z"/></svg>
+        </a>
+      </div>
+      <a href="https://ba4bes.com" target="_blank" class="site-link">ba4bes.com</a>
+    </div>
+
+  </div>
 
   <script>
     // ----------------------------------------------------------------
@@ -89,15 +243,12 @@
     // ----------------------------------------------------------------
     const API_BASE = '__API_BASE__'.replace(/\/$/, '');
 
-    const form     = document.getElementById('word-form');
-    const input    = document.getElementById('word-input');
-    const btn      = document.getElementById('submit-btn');
-    const statusEl = document.getElementById('status');
-
-    function setStatus(msg, type = '') {
-      statusEl.textContent = msg;
-      statusEl.className = type;
-    }
+    const formSection     = document.getElementById('form-section');
+    const thankyouSection = document.getElementById('thankyou-section');
+    const form            = document.getElementById('word-form');
+    const input           = document.getElementById('word-input');
+    const btn             = document.getElementById('submit-btn');
+    const statusEl        = document.getElementById('status');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -105,7 +256,8 @@
       if (!word) return;
 
       btn.disabled = true;
-      setStatus('Submitting…');
+      statusEl.textContent = 'Submitting…';
+      statusEl.className = '';
 
       try {
         const resp = await fetch(`${API_BASE}/words`, {
@@ -117,13 +269,13 @@
           const body = await resp.json().catch(() => ({}));
           throw new Error(body.error ?? `HTTP ${resp.status}`);
         }
-        input.value = '';
-        setStatus('Word added!', 'success');
+        // Replace form with thank you screen — no re-submission possible
+        formSection.style.display = 'none';
+        thankyouSection.classList.add('visible');
       } catch (err) {
-        setStatus(`Error: ${err.message}`, 'error');
-      } finally {
+        statusEl.textContent = `Error: ${err.message}`;
+        statusEl.className = 'error';
         btn.disabled = false;
-        input.focus();
       }
     });
   </script>

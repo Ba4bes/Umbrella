@@ -4,58 +4,168 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Umbrella — Word Cloud</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --iris:       #7C63A8;
+      --iris-soft:  #A688D4;
+      --iris-deep:  #5C4888;
+      --teal:       #3AAFA9;
+      --teal-soft:  #60CECA;
+      --amber:      #C47F55;
+      --bg:         #1A1714;
+      --surface:    #231F1B;
+      --surface-2:  #2D2924;
+      --border:     #3D3830;
+      --text-1:     #F0E8DC;
+      --text-2:     #9A9088;
+      --text-3:     #6A6258;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: #0f0f0f;
-      color: #fff;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-family: 'Sora', system-ui, sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--iris);
+      letter-spacing: -0.02em;
+    }
+
+    .header-sub {
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 0.68rem;
+      color: var(--text-3);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-left: auto;
+    }
+
+    .main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .left-panel {
+      width: 260px;
+      flex-shrink: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
+      padding: 2rem 1.5rem;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      gap: 1.25rem;
     }
-    header { padding: 1.5rem; text-align: center; }
-    h1 { font-size: 2rem; color: #60a5fa; letter-spacing: 0.05em; }
-    p.sub { color: #9ca3af; font-size: 0.9rem; margin-top: 0.4rem; }
-    #canvas-wrap {
+
+    .qr-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--teal);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    #qr-canvas {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #qr-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--text-3);
+      word-break: break-all;
+      text-align: center;
+    }
+
+    .divider {
       width: 100%;
-      max-width: 960px;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .btn-clear {
+      width: 100%;
+      padding: 0.55rem 1.3rem;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--iris);
+      border: 1px solid var(--iris);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .btn-clear:hover {
+      background: var(--iris);
+      color: #fff;
+    }
+
+    #status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-3);
+      text-align: center;
+      letter-spacing: 0.05em;
+      min-height: 1.2rem;
+    }
+
+    .cloud-panel {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
     }
+
     canvas#wc { display: block; }
-    #status { font-size: 0.78rem; color: #6b7280; padding: 0.8rem 0; }
-    #qr-section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 1.2rem 1.5rem 2rem;
-    }
-    #qr-section p { font-size: 0.85rem; color: #9ca3af; }
-    #qr-canvas { border-radius: 0.5rem; }
-    #qr-url { font-size: 0.75rem; color: #4b5563; word-break: break-all; }
   </style>
 </head>
 <body>
   <header>
-    <h1>&#9730; Umbrella</h1>
-    <p class="sub">Scan the QR code to add your word</p>
+    <span class="header-title">&#9730; Umbrella</span>
+    <span class="header-sub">Live word cloud</span>
   </header>
 
-  <div id="canvas-wrap">
-    <canvas id="wc" width="960" height="520"></canvas>
-  </div>
+  <div class="main-layout">
+    <aside class="left-panel">
+      <span class="qr-label">Scan to participate</span>
+      <div id="qr-canvas"></div>
+      <span id="qr-url"></span>
+      <div class="divider"></div>
+      <button class="btn-clear" id="clear-btn">Clear cloud</button>
+      <div id="status">Connecting…</div>
+    </aside>
 
-  <div id="status">Connecting…</div>
-
-  <div id="qr-section">
-    <p>Scan to submit a word</p>
-    <div id="qr-canvas"></div>
-    <span id="qr-url"></span>
+    <div class="cloud-panel">
+      <canvas id="wc" width="900" height="540"></canvas>
+    </div>
   </div>
 
   <!--
@@ -86,15 +196,17 @@
       return data.map(w => `${w.text}:${w.count}`).join(',');
     }
 
+    const brandColors = ['#7C63A8', '#A688D4', '#3AAFA9', '#60CECA', '#C47F55'];
+
     function renderCloud(data) {
       const list = data.map(({ text, count }) => [text, Math.max(count * 12, 14)]);
       WordCloud(canvas, {
         list,
         gridSize: 10,
         weightFactor: 1,
-        fontFamily: 'Segoe UI, Tahoma, sans-serif',
-        color: () => `hsl(${Math.floor(Math.random() * 360)}, 65%, 60%)`,
-        backgroundColor: '#0f0f0f',
+        fontFamily: "'Sora', system-ui, sans-serif",
+        color: () => brandColors[Math.floor(Math.random() * brandColors.length)],
+        backgroundColor: '#1A1714',
         rotateRatio: 0.3,
         minSize: 10,
         drawOutOfBound: false,
@@ -112,9 +224,9 @@
           renderCloud(data);
         }
         statusEl.textContent =
-          `${data.length} word${data.length !== 1 ? 's' : ''} · refreshed ${new Date().toLocaleTimeString()}`;
+          `${data.length} word${data.length !== 1 ? 's' : ''} · ${new Date().toLocaleTimeString()}`;
       } catch (err) {
-        statusEl.textContent = `Connection error: ${err.message}`;
+        statusEl.textContent = `Error: ${err.message}`;
       }
     }
 
@@ -125,9 +237,22 @@
       text: submitUrl,
       width: 180,
       height: 180,
-      colorDark: '#ffffff',
-      colorLight: '#0f0f0f',
+      colorDark: '#F0E8DC',
+      colorLight: '#231F1B',
       correctLevel: QRCode.CorrectLevel.H,
+    });
+
+    // Clear button — calls DELETE /words to reset the cloud
+    document.getElementById('clear-btn').addEventListener('click', async () => {
+      if (!confirm('Clear all words from the cloud?')) return;
+      try {
+        const resp = await fetch(`${API_BASE}/words`, { method: 'DELETE' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        lastRenderHash = '';
+        fetchWords();
+      } catch (err) {
+        statusEl.textContent = `Clear failed: ${err.message}`;
+      }
     });
 
     // Initial load + 3-second polling
