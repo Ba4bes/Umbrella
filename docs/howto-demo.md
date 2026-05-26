@@ -56,7 +56,7 @@
 
 Install missing tools:
 
-```bash
+```powershell
 # Azure CLI (Windows)
 winget install Microsoft.AzureCLI
 
@@ -66,7 +66,7 @@ winget install Microsoft.DotNet.SDK.10
 
 Log in to Azure:
 
-```bash
+```powershell
 az login
 az account set --subscription "<your subscription name or ID>"
 ```
@@ -77,7 +77,7 @@ az account set --subscription "<your subscription name or ID>"
 
 ### 2a. Create the resource group
 
-```bash
+```powershell
 az group create `
   --name rg-umbrella-demo `
   --location westeurope
@@ -87,7 +87,7 @@ az group create `
 
 Create the service principal:
 
-```bash
+```powershell
 az ad sp create-for-rbac `
   --name sp-umbrella-github `
   --role Contributor `
@@ -114,7 +114,7 @@ Save the `appId`, `tenant`, and your subscription ID — you will use them as se
 
 ### 2c. Note your own AAD object ID (for the Key Vault admin access policy)
 
-```bash
+```powershell
 az ad signed-in-user show --query id -o tsv
 ```
 
@@ -124,7 +124,7 @@ Save this value; you will use it as `KV_ADMIN_OBJECT_ID`.
 
 This SP needs **no permissions** — its failed access is what triggers the Defender for Key Vault alert.
 
-```bash
+```powershell
 az ad sp create-for-rbac `
   --name sp-umbrella-kv-attacker `
   --role Reader `
@@ -141,7 +141,7 @@ Save the `appId` and `password` — you will use them in demo step 10.
 
 The deploy workflow uses branch name to select the Bicep variant.
 
-```bash
+```powershell
 git checkout -b broken
 git push -u origin broken
 ```
@@ -161,7 +161,7 @@ Go to **Settings → Secrets and variables → Actions → Secrets** and add:
 
 Or use the GitHub CLI (prompts for each value interactively):
 
-```bash
+```powershell
 gh secret set AZURE_CLIENT_ID
 gh secret set AZURE_TENANT_ID
 gh secret set AZURE_SUBSCRIPTION_ID
@@ -172,7 +172,7 @@ gh secret set SWA_DEPLOYMENT_TOKEN   # leave blank for now; update after step 4d
 
 Alternatively, populate all secrets at once from a `.env` file:
 
-```bash
+```powershell
 gh secret set --env-file .env
 ```
 
@@ -187,7 +187,7 @@ Go to **Settings → Secrets and variables → Actions → Variables** and add:
 
 Or use the GitHub CLI:
 
-```bash
+```powershell
 gh variable set AZURE_RG --body "rg-umbrella-demo"
 gh variable set AZURE_WEBAPP_NAME --body "umbrella-api"
 ```
@@ -205,7 +205,7 @@ gh variable set AZURE_WEBAPP_NAME --body "umbrella-api"
 
 ### 4a. Trigger the deploy workflow
 
-```bash
+```powershell
 git checkout broken
 git commit --allow-empty -m "chore: trigger broken baseline deploy"
 git push
@@ -213,7 +213,7 @@ git push
 
 Or trigger the workflow directly without a commit:
 
-```bash
+```powershell
 gh workflow run deploy.yml --ref broken
 ```
 
@@ -226,13 +226,13 @@ This triggers `.github/workflows/deploy.yml`, which:
 
 Watch progress at **GitHub → Actions**, or follow it in the terminal:
 
-```bash
+```powershell
 gh run watch
 ```
 
 ### 4b. Confirm resources are created
 
-```bash
+```powershell
 az resource list `
   --resource-group rg-umbrella-demo `
   --output table
@@ -244,7 +244,7 @@ You should see: App Service plan, App Service, Static Web App, SQL Server, SQL D
 
 ### 4c. Retrieve the APIM gateway URL
 
-```bash
+```powershell
 az apim show `
   --name umbrella-apim `
   --resource-group rg-umbrella-demo `
@@ -254,7 +254,7 @@ az apim show `
 
 ### 4d. Get the Static Web Apps deployment token and save it
 
-```bash
+```powershell
 az staticwebapp secrets list `
   --name umbrella-swa `
   --resource-group rg-umbrella-demo `
@@ -266,20 +266,20 @@ Paste this value into the `SWA_DEPLOYMENT_TOKEN` GitHub secret (Settings → Sec
 
 Or use the GitHub CLI:
 
-```bash
-SWA_TOKEN=$(az staticwebapp secrets list \
-  --name umbrella-swa \
-  --resource-group rg-umbrella-demo \
-  --query "properties.apiKey" \
+```powershell
+$SWA_TOKEN = $(az staticwebapp secrets list `
+  --name umbrella-swa `
+  --resource-group rg-umbrella-demo `
+  --query "properties.apiKey" `
   --output tsv)
 
-gh secret set SWA_DEPLOYMENT_TOKEN --body "$SWA_TOKEN"
+gh secret set SWA_DEPLOYMENT_TOKEN --body $SWA_TOKEN
 gh run rerun --failed
 ```
 
 ### 4e. Confirm the app is working
 
-```bash
+```powershell
 # Health check
 curl https://umbrella-api-nl.azurewebsites.net/health
 
@@ -338,9 +338,9 @@ See [Microsoft Learn — Protect your APIs with Defender for APIs](https://learn
 
 Run this checklist the morning of the demo:
 
-```bash
-APIM_URL="https://umbrella-apim.azure-api.net"
-APP_URL="https://umbrella-api-nl.azurewebsites.net"
+```powershell
+$APIM_URL = "https://umbrella-apim.azure-api.net"
+$APP_URL = "https://umbrella-api-nl.azurewebsites.net"
 
 # Backend health
 curl -s "$APP_URL/health" | python3 -m json.tool
@@ -371,7 +371,7 @@ Alert latency: typically 10–30 minutes; the first alert on a brand-new SQL ser
 
 **Pre-flight checks (run once, before the demo):**
 
-```bash
+```powershell
 # 1. Defender for SQL plan must be On at subscription level
 az security pricing show --name SqlServers --query pricingTier -o tsv   # expect: Standard
 
@@ -420,7 +420,7 @@ If any check returns `Disabled` / `Free`, enable it in the portal under **SQL se
    X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*
    ```
    Or download it directly:
-   ```bash
+   ```powershell
    curl -o eicar.txt https://secure.eicar.org/eicar.com.txt
    ```
 4. Upload the file to the container.
@@ -450,16 +450,14 @@ Alert latency: 30 minutes to a few hours after the burst — Defender for APIs a
 
 1. Open Azure Cloud Shell (bash) in the Portal, or use a local terminal.
 2. Set your APIM URL:
-   ```bash
-   APIM_URL="https://umbrella-apim.azure-api.net"
+   ```powershell
+   $APIM_URL = "https://umbrella-apim.azure-api.net"
    ```
 3. Generate sustained traffic. A single 200-request burst is rarely large enough to clear the anomaly threshold — run a larger volume from multiple shells, or loop the burst several times over 5–10 minutes:
-   ```bash
+   ```powershell
    # Heavy burst — adjust upward if no alert fires within 1–2 hours.
-   for i in $(seq 1 2000); do
-     curl -s -o /dev/null "$APIM_URL/words"
-   done
-   echo "Burst complete"
+   1..2000 | ForEach-Object { curl -s -o /dev/null "$APIM_URL/words" }
+   Write-Host "Burst complete"
    ```
 4. Open **Defender for Cloud → Security alerts** and wait.
 5. Show the API anomaly alert. Click through to the APIM resource to show there is no rate-limiting policy and no subscription key required (misconfigs #5).
@@ -478,23 +476,23 @@ Alert latency: typically 30 minutes to 2 hours — Defender for Key Vault uses b
 
 **Find the actual vault name and tenant ID** (the broken Bicep names the vault `<prefix>-kv123`, not `<prefix>-kv`):
 
-```bash
-KV_NAME=$(az keyvault list --resource-group rg-umbrella-demo --query "[0].name" -o tsv)
-TENANT_ID=$(az account show --query tenantId -o tsv)
-echo "Vault: $KV_NAME    Tenant: $TENANT_ID"
+```powershell
+$KV_NAME = $(az keyvault list --resource-group rg-umbrella-demo --query "[0].name" -o tsv)
+$TENANT_ID = $(az account show --query tenantId -o tsv)
+Write-Host "Vault: $KV_NAME    Tenant: $TENANT_ID"
 ```
 
 **Steps:**
 
 1. Log in as the attacker service principal created in step 2d:
-   ```bash
+   ```powershell
    az login --service-principal `
      --username "<attacker-sp-appId>" `
      --password "<attacker-sp-password>" `
      --tenant "$TENANT_ID"
    ```
 2. Attempt to list secrets:
-   ```bash
+   ```powershell
    az keyvault secret list `
      --vault-name $KV_NAME `
      --output table
@@ -502,7 +500,7 @@ echo "Vault: $KV_NAME    Tenant: $TENANT_ID"
    The command will fail with `Caller is not authorized` — that is expected.
 3. Repeat the failed call several times from different shells to strengthen the anomaly signal.
 4. Log back in with your normal account:
-   ```bash
+   ```powershell
    az login
    ```
 5. Open **Defender for Cloud → Security alerts**.
@@ -520,7 +518,7 @@ echo "Vault: $KV_NAME    Tenant: $TENANT_ID"
 
 Microsoft publishes one official Defender for App Service trigger that is signature-matched on the request URL — see [Microsoft Learn — Test AppServices alerts](https://learn.microsoft.com/en-us/azure/defender-for-cloud/alert-validation#test-appservices-alerts).
 
-```bash
+```powershell
 curl "https://umbrella-api-nl.azurewebsites.net/This_Will_Generate_ASC_Alert"
 ```
 
@@ -533,7 +531,7 @@ curl "https://umbrella-api-nl.azurewebsites.net/This_Will_Generate_ASC_Alert"
 Use this to *show the misconfig* even if the alert from 11a has not arrived yet. The command output proves the backend is exploitable; whether Defender for App Service raises a runtime alert on the spawned shell on a Linux plan is best-effort and not guaranteed within demo timeframes.
 
 1. Hit the debug endpoint:
-   ```bash
+   ```powershell
    curl "https://umbrella-api-nl.azurewebsites.net/debug/exec?cmd=whoami"
    ```
    Expected response:
@@ -541,12 +539,12 @@ Use this to *show the misconfig* even if the alert from 11a has not arrived yet.
    {"stdout":"app\n","stderr":"","exitCode":0}
    ```
    If the response body is empty, confirm the `ENABLE_DEBUG_EXEC` app setting is `true`:
-   ```bash
+   ```powershell
    az webapp config appsettings list --name umbrella-api-nl --resource-group rg-umbrella-demo `
      --query "[?name=='ENABLE_DEBUG_EXEC']"
    ```
 2. Try a second, more obviously suspicious command:
-   ```bash
+   ```powershell
    curl "https://umbrella-api-nl.azurewebsites.net/debug/exec?cmd=cat+/etc/passwd"
    ```
 3. Open **Defender for Cloud → Security alerts**.
@@ -602,8 +600,8 @@ If you see *“Code scanning alerts • Disabled — Advanced Security is only a
 
    Or via the GitHub CLI:
 
-   ```bash
-   gh api repos/Ba4bes/Umbrella/code-scanning/alerts \
+   ```powershell
+   gh api repos/Ba4bes/Umbrella/code-scanning/alerts `
      --jq '.[] | {number,rule_id:.rule.id,severity:.rule.severity,file:.most_recent_instance.location.path}'
    ```
 
@@ -613,8 +611,8 @@ If you see *“Code scanning alerts • Disabled — Advanced Security is only a
 
    Or via the GitHub CLI:
 
-   ```bash
-   gh api repos/Ba4bes/Umbrella/dependabot/alerts \
+   ```powershell
+   gh api repos/Ba4bes/Umbrella/dependabot/alerts `
      --jq '.[] | {number,package:.dependency.package.name,severity:.security_vulnerability.severity,summary:.security_advisory.summary}'
    ```
 
@@ -627,8 +625,8 @@ If you see *“Code scanning alerts • Disabled — Advanced Security is only a
 
    Or via the GitHub CLI:
 
-   ```bash
-   gh api repos/Ba4bes/Umbrella/code-scanning/alerts -f tool_name=Checkov \
+   ```powershell
+   gh api repos/Ba4bes/Umbrella/code-scanning/alerts -f tool_name=Checkov `
      --jq '.[] | {number,rule_id:.rule.id,file:.most_recent_instance.location.path}'
    ```
 
@@ -686,7 +684,7 @@ Run this on stage to show the Secure Score improving and alerts resolving.
 
 ### Option A — push to main (full redeploy, ~10 minutes)
 
-```bash
+```powershell
 git checkout main
 git merge broken --no-ff -m "fix: apply Defender for Cloud remediations"
 git push
@@ -704,7 +702,7 @@ This triggers the `deploy.yml` workflow with `fixed.bicep`, which:
 
 ### Option B — deployment slot swap (near-instant, recommended for live demos)
 
-```bash
+```powershell
 # Pre-stage the fixed version in a staging slot
 az webapp deployment slot create `
   --name umbrella-api `
@@ -735,7 +733,7 @@ After the swap, open **Defender for Cloud → Secure Score** and press **Refresh
 
 Delete all resources when the demo is finished to avoid ongoing costs.
 
-```bash
+```powershell
 az group delete `
   --name rg-umbrella-demo `
   --yes `
@@ -744,7 +742,7 @@ az group delete `
 
 Also clean up the AAD service principals:
 
-```bash
+```powershell
 az ad sp delete --id "<sp-umbrella-github-appId>"
 az ad sp delete --id "<sp-umbrella-kv-attacker-appId>"
 ```
