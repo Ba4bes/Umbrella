@@ -276,7 +276,7 @@ gh run rerun --failed
 
 ```bash
 # Health check
-curl https://umbrella-api.azurewebsites.net/health
+curl https://umbrella-api-nl.azurewebsites.net/health
 
 # Expected:
 # {"status":"healthy","utc":"..."}
@@ -307,7 +307,25 @@ All plans must be on **before** the demo triggers will generate alerts.
 4. Click **Save**.
 5. Under **DevOps security**, confirm the GitHub environment from step 3d is connected.
 
-> Allow 10–15 minutes after enabling plans before running demo triggers — the monitoring agents need time to initialise.
+### 5a. Confirm the APIM API is onboarded to Defender for APIs
+
+Enabling the Defender for APIs **plan** is not enough — every API must be **onboarded** before any alerts fire.
+See [Microsoft Learn — Protect your APIs with Defender for APIs](https://learn.microsoft.com/en-us/azure/defender-for-cloud/defender-for-apis-deploy#onboard-apis).
+
+**Check first — the API may already be onboarded:**
+
+1. In the Azure Portal open **Defender for Cloud → Workload protections → API security**.
+2. If `umbrella-apim` (or individual operations like `get-words`, `post-words`, `delete-words`, `get-health`) is listed there, **the API is already onboarded** — skip ahead.
+3. Equivalent signal in **Recommendations** (filter by *defender*): per-operation findings such as *“API endpoints in Azure API Management should be authenticated”* with affected resources `get-words`, `post-words`, etc. confirm Defender for APIs is already monitoring the operations.
+
+**Only if the API is *not* yet listed:**
+
+1. Open **Defender for Cloud → Recommendations** and search for **Azure API Management APIs should be onboarded to Defender for APIs**.
+   - If this recommendation does **not** appear in the list, there are no unhealthy resources — the API is already onboarded (the recommendation is hidden when nothing needs fixing).
+2. Otherwise open it, select the `umbrella-api` API under **Unhealthy resources**, and click **Fix → Fix resources**.
+3. Wait up to 50 minutes for the API to appear under **Workload protections → API security**, and ~30 minutes more for baseline traffic learning before burst alerts can fire.
+
+> Allow 10–15 minutes after enabling plans (and 30–60 minutes after API onboarding) before running demo triggers — the monitoring agents and baseline learners need time to initialise. Defender for APIs anomaly detection benefits from **several hours to a day** of baseline traffic; a brand-new API with no history will not reliably emit burst alerts on the first try.
 
 ---
 
@@ -317,7 +335,7 @@ Run this checklist the morning of the demo:
 
 ```bash
 APIM_URL="https://umbrella-apim.azure-api.net"
-APP_URL="https://umbrella-api.azurewebsites.net"
+APP_URL="https://umbrella-api-nl.azurewebsites.net"
 
 # Backend health
 curl -s "$APP_URL/health" | python3 -m json.tool
@@ -337,24 +355,48 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
 
 **What it shows:** Defender for Databases detects a SQL injection attack pattern in real time.
 
-**Expected alert:** `Potential SQL injection` — fires within ~2 minutes.
+**Expected alerts** (per [Microsoft Learn — Defender for Azure SQL alerts](https://learn.microsoft.com/en-us/azure/defender-for-cloud/alerts-azure-sql-db-and-warehouse)):
+
+- **Vulnerability to SQL injection** (`SQL.DB_VULNERABILITY` / `SQL.MI_VULNERABILITY`) — fires when the application generates a faulty SQL statement that indicates susceptibility to injection.
+- **Potential SQL injection** (`SQL.DB_POTENTIAL_SQLI`) — fires when an actual exploit against a known vulnerable statement appears to succeed.
+
+For this demo the **Vulnerability to SQL injection** alert is the one you will see, because the malformed payload causes a SQL syntax error.
+
+Alert latency: typically 10–30 minutes; the first alert on a brand-new SQL server can take up to ~60 minutes while Defender for SQL finishes initial activation. If nothing has appeared after 30 minutes, run the steps below first.
+
+**Pre-flight checks (run once, before the demo):**
+
+```bash
+# 1. Defender for SQL plan must be On at subscription level
+az security pricing show --name SqlServers --query pricingTier -o tsv   # expect: Standard
+
+# 2. Microsoft Defender for SQL must be enabled on the SQL *server*
+az sql server advanced-threat-protection-setting show `
+  --resource-group rg-umbrella-demo --name umbrella-sql --query state -o tsv   # expect: Enabled
+
+# 3. Auditing should be on (Defender for SQL relies on the audit pipeline)
+az sql server audit-policy show --resource-group rg-umbrella-demo --name umbrella-sql --query state -o tsv
+```
+
+If any check returns `Disabled` / `Free`, enable it in the portal under **SQL server → Microsoft Defender for Cloud** and wait ~10 minutes before retrying.
 
 **Steps:**
 
-1. Open the word-cloud app in the browser (share screen / project it).
+1. Open the word-cloud submit page in the browser (share screen / project it).
 2. In the word input box, type exactly:
    ```
    '; DROP TABLE Words;--
    ```
-3. Click **Submit**.
-4. Switch to the Azure Portal tab.
-5. Open **Defender for Cloud → Security alerts**.
-6. The alert `Potential SQL injection` will appear. Click it to show:
+3. Click **Submit**. The frontend will display **Error: HTTP 500** — this is *expected*. The malformed query reaches the SQL server, fails to parse, and SQL returns an error. The alert fires on the failed statement.
+4. Submit the payload **3–5 times in a row** — a single failed query can be ignored as noise; repeated identical anomalies are what tip the detector over the threshold.
+5. Switch to the Azure Portal tab.
+6. Open **Defender for Cloud → Security alerts**.
+7. The `Vulnerability to SQL injection` alert appears (allow up to 30 minutes). Click it to show:
    - The offending query text.
    - The affected SQL Server resource.
    - The recommended remediation (use parameterised queries).
 
-**Talking point:** The table is not actually dropped because the backend uses a connection string with a limited-privilege SQL login. The alert fires on the *pattern*, not the *outcome* — this is behavioural detection, not signature matching.
+**Talking point:** The HTTP 500 error the audience sees is itself part of the story — it proves the malformed string reached the database. Defender detects the *pattern* of an injection attempt, not the outcome, so the alert would fire even if the statement had been syntactically valid and the table had actually been dropped. In the *fixed* version, the backend switches to parameterised EF Core queries, and the same payload is stored harmlessly as a literal word.
 
 ---
 
@@ -387,9 +429,17 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
 
 ## 9. Demo: API burst — Defender for APIs
 
-**What it shows:** Defender for APIs detects an anomalous traffic spike and missing authentication on the APIM gateway.
+**What it shows:** Defender for APIs detects an anomalous traffic spike and surfaces missing-authentication posture on the APIM gateway.
 
-**Expected alert:** `Spike in API traffic` — fires within ~5 minutes of the burst.
+**Expected alert** (per [Microsoft Learn — API alert reference](https://learn.microsoft.com/en-us/azure/defender-for-cloud/alerts-reference#api-alerts)): `Suspicious population-level spike in API traffic to an API endpoint` or `Suspicious spike in API traffic from a single IP address`.
+
+**Hard prerequisites — confirm before running the burst:**
+
+1. Defender for APIs plan is **On** (step 5).
+2. The `umbrella-api` API is **onboarded** to Defender for APIs (step 5a). Confirm at **Defender for Cloud → Workload protections → API security** — the API must be listed there.
+3. At least 30 minutes of baseline traffic learning has elapsed since onboarding. Without a baseline, no anomaly can be detected.
+
+Alert latency: 30 minutes to a few hours after the burst — Defender for APIs alerting is **not real-time**; this demo is best shown alongside a pre-recorded alert screenshot if you cannot guarantee the wait.
 
 **Steps:**
 
@@ -398,9 +448,10 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
    ```bash
    APIM_URL="https://umbrella-apim.azure-api.net"
    ```
-3. Run the burst:
+3. Generate sustained traffic. A single 200-request burst is rarely large enough to clear the anomaly threshold — run a larger volume from multiple shells, or loop the burst several times over 5–10 minutes:
    ```bash
-   for i in $(seq 1 200); do
+   # Heavy burst — adjust upward if no alert fires within 1–2 hours.
+   for i in $(seq 1 2000); do
      curl -s -o /dev/null "$APIM_URL/words"
    done
    echo "Burst complete"
@@ -414,9 +465,19 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
 
 ## 10. Demo: Key Vault enumeration — Defender for Key Vault
 
-**What it shows:** Defender for Key Vault alerts on a failed secret-listing attempt from an unknown principal.
+**What it shows:** Defender for Key Vault alerts on a failed/anomalous secret-listing attempt from an unknown principal.
 
-**Expected alert:** `Unusual access to a Key Vault from a suspicious application` — fires within ~5 minutes.
+**Expected alert** (per [Microsoft Learn — Key Vault alert reference](https://learn.microsoft.com/en-us/azure/defender-for-cloud/alerts-reference#azure-key-vault-alerts)): typically `Access from a suspicious IP address to a key vault` or `Denied access by an unusual user or application` (`KV_AnonymousAccess`, `KV_DenyAccess`).
+
+Alert latency: typically 30 minutes to 2 hours — Defender for Key Vault uses behavioural baselines that need 24 hours of prior "normal" traffic to fire reliably. If the vault is brand-new, you may not see an alert from a single attempt; either pre-warm the vault with normal access the day before, or fall back to the documented **Tor-based validation** in [Microsoft Learn — Validate Azure Key Vault Threat Detection](https://learn.microsoft.com/en-us/azure/defender-for-cloud/alert-validation#validate-azure-key-vault-threat-detection).
+
+**Find the actual vault name and tenant ID** (the broken Bicep names the vault `<prefix>-kv123`, not `<prefix>-kv`):
+
+```bash
+KV_NAME=$(az keyvault list --resource-group rg-umbrella-demo --query "[0].name" -o tsv)
+TENANT_ID=$(az account show --query tenantId -o tsv)
+echo "Vault: $KV_NAME    Tenant: $TENANT_ID"
+```
 
 **Steps:**
 
@@ -425,21 +486,22 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
    az login --service-principal `
      --username "<attacker-sp-appId>" `
      --password "<attacker-sp-password>" `
-     --tenant "<your-tenant-id>"
+     --tenant "$TENANT_ID"
    ```
 2. Attempt to list secrets:
    ```bash
    az keyvault secret list `
-     --vault-name umbrella-kv `
+     --vault-name $KV_NAME `
      --output table
    ```
    The command will fail with `Caller is not authorized` — that is expected.
-3. Log back in with your normal account:
+3. Repeat the failed call several times from different shells to strengthen the anomaly signal.
+4. Log back in with your normal account:
    ```bash
    az login
    ```
-4. Open **Defender for Cloud → Security alerts**.
-5. Show the Key Vault alert. Note that it captures the caller object ID, IP address, and the vault targeted.
+5. Open **Defender for Cloud → Security alerts**.
+6. Show the Key Vault alert. Note that it captures the caller object ID, IP address, and the vault targeted.
 
 **Talking point:** The alert fires even though the enumeration failed. Defender for Key Vault monitors the Azure audit plane, not just successful reads.
 
@@ -447,31 +509,45 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
 
 ## 11. Demo: Shell execution — Defender for App Service
 
-**What it shows:** Defender for App Service detects a suspicious process spawned by the web application.
+**What it shows:** Defender for App Service detects suspicious web-application activity and (in the broken baseline) a backend that will happily run arbitrary shell commands.
 
-**Expected alert:** `Suspicious process execution detected` — fires within ~2 minutes.
+### 11a. Guaranteed alert — the Microsoft-documented EICAR test URL (run this first)
 
-**Steps:**
+Microsoft publishes one official Defender for App Service trigger that is signature-matched on the request URL — see [Microsoft Learn — Test AppServices alerts](https://learn.microsoft.com/en-us/azure/defender-for-cloud/alert-validation#test-appservices-alerts).
 
-1. Open a browser or use `curl` to hit the debug endpoint:
+```bash
+curl "https://umbrella-api-nl.azurewebsites.net/This_Will_Generate_ASC_Alert"
+```
+
+**Expected alert:** `Suspicious WordPress theme invocation detected` (test alert) — fires within ~1.5–4 hours.
+
+> Run this as soon as the App Service has been deployed (and Defender for App Service has been **On** for ≥24 hours). It is the only Defender for App Service alert with a documented, guaranteed trigger.
+
+### 11b. Narrative trigger — the `/debug/exec` endpoint
+
+Use this to *show the misconfig* even if the alert from 11a has not arrived yet. The command output proves the backend is exploitable; whether Defender for App Service raises a runtime alert on the spawned shell on a Linux plan is best-effort and not guaranteed within demo timeframes.
+
+1. Hit the debug endpoint:
    ```bash
-   curl "https://umbrella-api.azurewebsites.net/debug/exec?cmd=whoami"
+   curl "https://umbrella-api-nl.azurewebsites.net/debug/exec?cmd=whoami"
    ```
    Expected response:
    ```json
    {"stdout":"app\n","stderr":"","exitCode":0}
    ```
+   If the response body is empty, confirm the `ENABLE_DEBUG_EXEC` app setting is `true`:
+   ```bash
+   az webapp config appsettings list --name umbrella-api-nl --resource-group rg-umbrella-demo `
+     --query "[?name=='ENABLE_DEBUG_EXEC']"
+   ```
 2. Try a second, more obviously suspicious command:
    ```bash
-   curl "https://umbrella-api.azurewebsites.net/debug/exec?cmd=cat+/etc/passwd"
+   curl "https://umbrella-api-nl.azurewebsites.net/debug/exec?cmd=cat+/etc/passwd"
    ```
 3. Open **Defender for Cloud → Security alerts**.
-4. Show the `Suspicious process execution detected` alert. Click through to see:
-   - The process name (`sh`), its parent (`dotnet`), and the command line.
-   - The App Service resource.
-   - The recommended action (remove the endpoint, enable HTTPS, enable MI).
+4. Show the alert from 11a (`Suspicious WordPress theme invocation detected`). If a runtime alert from 11b is also present, click through to see the process name, parent, and command line.
 
-**Talking point:** This endpoint is gated on the `ENABLE_DEBUG_EXEC=true` app setting, which is set in `broken.bicep` and absent in `fixed.bicep`. The fixed slot has no `/debug/exec` route at all.
+**Talking point:** The `/debug/exec` endpoint is gated on the `ENABLE_DEBUG_EXEC=true` app setting, which is set in `broken.bicep` and absent in `fixed.bicep`. The fixed slot has no `/debug/exec` route at all. The signature-based alert in 11a is what proves the *detection plane* is alive; the misconfig itself is what the audience sees in the response body.
 
 > Do not run destructive commands (`rm -rf`, etc.) — the App Service plan is shared and you will need it for the rest of the demo.
 
@@ -482,6 +558,37 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
 **What it shows:** Defender for DevOps surfaces Bicep IaC misconfigurations and a vulnerable NuGet package directly in the GitHub Security tab and the Defender for Cloud DevOps blade.
 
 **No live trigger needed** — findings are already present after the first push to the `broken` branch.
+
+### 12a. GHAS / Code Scanning prerequisites
+
+Code Scanning **alerts** in the GitHub UI require one of the following — see [GitHub Docs — About code scanning](https://docs.github.com/en/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning):
+
+- The repository is **public** (Code Scanning is free), **or**
+- The repository is **owned by an organization** and that organization has **GitHub Advanced Security** enabled on the repo.
+
+If you see *“Code scanning alerts • Disabled — Advanced Security is only available for Organizations”* (as in the workspace screenshot), the repo is in a personal namespace. Either make it public, or transfer it to an organization that has GHAS:
+
+### 12b. Transferring the repo to a GHAS-enabled organization
+
+1. In GitHub, open **Settings → General** on the `Ba4bes/Umbrella` repo.
+2. Scroll to **Danger Zone → Transfer ownership**.
+3. Enter the destination organization (it must already have GHAS purchased / a license assigned), confirm by typing the repo name, and click **I understand, transfer this repository**.
+4. GitHub will redirect old URLs to the new owner automatically.
+5. In the *new* `<org>/Umbrella` repo, open **Settings → Code security and analysis**:
+   - Enable **GitHub Advanced Security** (toggle on).
+   - Enable **Code scanning → Set up → Default** (or keep the workflow-based CodeQL scan from `.github/workflows/security.yml`).
+   - Enable **Dependabot alerts** and **Dependabot security updates**.
+   - Enable **Secret scanning** and **Push protection**.
+6. Update all `repo:Ba4bes/Umbrella:...` federated-credential subjects to `repo:<org>/Umbrella:...`:
+   ```powershell
+   az ad app federated-credential create --id <APP_ID> --parameters '{"name":"github-main-org","issuer":"https://token.actions.githubusercontent.com","subject":"repo:<org>/Umbrella:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
+   az ad app federated-credential create --id <APP_ID> --parameters '{"name":"github-broken-org","issuer":"https://token.actions.githubusercontent.com","subject":"repo:<org>/Umbrella:ref:refs/heads/broken","audiences":["api://AzureADTokenExchange"]}'
+   ```
+7. Re-add all repository secrets and variables in the new repo (they do not migrate).
+8. In **Defender for Cloud → Environment settings → DevOps**, remove the old connector and re-add the GitHub environment pointing at the new org.
+9. Re-run the `security.yml` workflow on the `broken` branch — CodeQL, Dependency Review, and the Microsoft Security DevOps Bicep IaC scan will now publish SARIF into **Security → Code scanning alerts**.
+
+**Alternative (no migration):** Make the repo public via **Settings → General → Change visibility → Make public**. CodeQL becomes free immediately. Acceptable if there are no secrets in the repo history (run `gh secret scanning` first).
 
 **Steps:**
 
@@ -530,23 +637,41 @@ Open the SWA URL in a browser. Submit a word. Confirm it appears in the cloud wi
 
 ## 13. Demo: CSPM — Secure Score and attack paths
 
-**What it shows:** Defender CSPM aggregates all misconfigs into a Secure Score and draws attack paths across resources.
+**What it shows:** Defender CSPM aggregates all misconfigs into a Secure Score, raises recommendations, and (after a discovery delay) draws attack paths across resources.
 
-**No trigger needed** — populated by the broken baseline deployment.
+**Hard prerequisites** (per [Microsoft Learn — Identify and analyze risks across your environment](https://learn.microsoft.com/en-us/azure/defender-for-cloud/concept-attack-path)):
+
+- **Defender CSPM** plan must be **On** (the free CSPM plan does NOT include attack path analysis).
+- The cloud security graph and attack path engine scan once every **24 hours**. After enabling CSPM you typically need to **wait 24–48 hours** before any attack paths appear. A `0` count in the Attack path analysis blade on day 1 (as in the workspace screenshot) is the expected state, not a misconfiguration.
+- Resources must be present and registered in the inventory — confirm under **Defender for Cloud → Inventory** that `rg-umbrella-demo` resources are listed before expecting paths.
 
 **Steps:**
 
 1. Open **Defender for Cloud → Secure Score**.
-   - Show the overall score (it will be low due to the broken baseline).
+   - Show the overall score (it will be low due to the broken baseline). Recommendations populate within ~30 minutes of deployment, so this part of the demo is reliable on day 1.
    - Click **View recommendations** to show the full list of active findings.
 
-2. Open **Defender for Cloud → Attack path analysis**.
-   - Look for a path that connects: Internet → public Storage blob → SQL Server (the open firewall makes the DB reachable from the same network segment as the public blob).
-   - Explain how an attacker could exfiltrate data stored in the SQL DB via the over-privileged path.
-
-3. Open **Defender for Cloud → Recommendations**.
+2. Open **Defender for Cloud → Recommendations**.
    - Filter by resource group `rg-umbrella-demo`.
-   - Walk through the top recommendations: enable HTTPS, remove public blob access, restrict SQL firewall, enable Managed Identity.
+   - Walk through the top recommendations expected from the broken baseline:
+     - *Storage account public access should be disallowed* (misconfig #1)
+     - *Public network access on Azure SQL Database should be disabled* / SQL firewall rule open to the internet (misconfig #2)
+     - *Web Application should only be accessible over HTTPS* (misconfig #6)
+     - *App Service should use the latest TLS version* (misconfig #6)
+     - *Managed identity should be used in your Web App* (misconfig #8)
+     - *Diagnostic logs in App Service should be enabled* (misconfig #7)
+     - *API Management subscriptions should not be scoped to all APIs* / *APIs should be onboarded to Defender for APIs* (misconfig #5)
+
+3. Open **Defender for Cloud → Attack path analysis** (requires **Defender CSPM** plan on, and 24–48h after deployment).
+   - Realistic attack paths the engine generates against the broken baseline include variations of:
+     - *Internet exposed Azure SQL server with high-severity vulnerabilities* (firewall `0.0.0.0–255.255.255.255` + SQL admin credentials in plain App Service app setting).
+     - *Internet exposed Storage account with public read access* (anonymous blob access on the `assets` container).
+     - *Internet exposed Web App with sensitive data in app settings* (plain-text SQL connection string + no MI).
+   - Note: exact attack-path titles depend on what the cloud security graph discovers in *your* tenant; the three above are the most commonly generated against this baseline. If you see fewer paths, wait another 24 hours and refresh.
+
+4. (Optional) Open **Defender for Cloud → Cloud security explorer** to run an interactive query — for example *“Internet-exposed Azure resources with high-severity recommendations”* — and use the results as a live alternative to a pre-rendered attack path.
+
+**Talking point for a day-1 demo:** If Attack Path Analysis still shows `0` paths on stage, use **Recommendations** and **Cloud security explorer** as the CSPM visual. Attack paths require a full graph-scan cycle, and a deliberately newly-deployed environment will not yet have one.
 
 ---
 
@@ -623,15 +748,19 @@ az ad sp delete --id "<sp-umbrella-kv-attacker-appId>"
 
 ## Quick-reference: alert timing
 
+Latencies below match Microsoft Learn defaults; expect the upper end on a brand-new subscription where baselines are still warming up.
+
 | Demo | Trigger action | Typical alert latency |
 |---|---|---|
-| SQL injection | Submit payload in word form | 1–3 min |
+| SQL injection | Submit `'; DROP TABLE Words;--` in word form 3–5× (HTTP 500 is expected) | 10–30 min (up to 60 min on first activation) |
 | Malware upload | Upload EICAR blob | ~60 s |
-| API burst | 200-request loop | 3–5 min |
-| Key Vault enumeration | `az keyvault secret list` (denied) | 3–5 min |
-| App Service shell | `GET /debug/exec?cmd=whoami` | 1–3 min |
-| DevOps findings | Already present after first push | Instant |
-| CSPM | Already present after deployment | Instant |
+| API burst | 2 000-request loop **after** API is onboarded to Defender for APIs | 30 min – a few hours |
+| Key Vault enumeration | Repeated denied `az keyvault secret list` from unprivileged SP | 30 min – 2 hours |
+| App Service — guaranteed | `GET /This_Will_Generate_ASC_Alert` (MS Learn signature trigger) | 1.5–4 hours |
+| App Service — narrative | `GET /debug/exec?cmd=whoami` | Best-effort, not guaranteed |
+| DevOps findings | Already present after first push (requires GHAS on org repo) | Instant |
+| CSPM recommendations | Already present after deployment | ~30 min |
+| CSPM attack paths | Requires Defender CSPM on | **24–48 hours** |
 
 ---
 
@@ -649,8 +778,10 @@ az ad sp delete --id "<sp-umbrella-kv-attacker-appId>"
 - Wait 10–15 minutes after enabling a plan before running the trigger.
 - Check that the resource group `rg-umbrella-demo` is in scope for the plan.
 
-**`/debug/exec` returns 404**
-- Confirm the `ENABLE_DEBUG_EXEC` app setting is `true` in the App Service configuration: `az webapp config appsettings list --name umbrella-api --resource-group rg-umbrella-demo`.
+**`/debug/exec` returns 404 or empty body**
+- Confirm the `ENABLE_DEBUG_EXEC` app setting is `true` in the App Service configuration: `az webapp config appsettings list --name umbrella-api-nl --resource-group rg-umbrella-demo`.
+- Note the App Service name in the broken Bicep is `umbrella-api-nl`, not `umbrella-api`. The default backend URL is `https://umbrella-api-nl.azurewebsites.net`.
+- After changing the app setting, restart the App Service: `az webapp restart --name umbrella-api-nl --resource-group rg-umbrella-demo`.
 
 **GitHub Actions deploy fails with OIDC / login error**
 - Confirm `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` secrets are set correctly.

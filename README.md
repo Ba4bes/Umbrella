@@ -43,12 +43,13 @@ A **Defender for Cloud** demo built around a live word-cloud app. Attendees subm
 
 | Demo | How to trigger |
 |---|---|
-| SQL injection | Submit `'; DROP TABLE Words;--` as a word |
+| SQL injection | Submit `'; DROP TABLE Words;--` as a word (returns HTTP 500 — alert fires on the failed statement) |
 | Malware upload | Upload EICAR to the blob container via Portal |
-| API burst | `for i in $(seq 1 200); do curl -s https://<apim>.azure-api.net/words; done` |
-| Key Vault enumeration | Second SP with no perms runs `az keyvault secret list` |
-| App Service runtime alert | `GET https://<app>.azurewebsites.net/debug/exec?cmd=whoami` |
-| DevOps findings | GitHub / Defender for Cloud → DevOps blade → IaC + dependency findings |
+| API burst | `for i in $(seq 1 2000); do curl -s https://<apim>.azure-api.net/words; done` (API must be onboarded to Defender for APIs first) |
+| Key Vault enumeration | Second SP with no perms runs `az keyvault secret list --vault-name <prefix>-kv123` |
+| App Service — guaranteed alert | `GET https://<app>.azurewebsites.net/This_Will_Generate_ASC_Alert` (official MS Learn trigger) |
+| App Service — narrative misconfig | `GET https://<app>.azurewebsites.net/debug/exec?cmd=whoami` |
+| DevOps findings | GitHub / Defender for Cloud → DevOps blade → IaC + dependency findings (requires GHAS on org repo or public repo) |
 
 ## Required GitHub secrets / variables
 
@@ -137,7 +138,10 @@ Then open the frontend URLs in a browser:
 # 6. Debug exec (triggers Defender for App Service alert)
 curl "https://umbrella-api-nl.azurewebsites.net/debug/exec?cmd=whoami"
 
-# 7. SQL injection (triggers Defender for Databases alert)
+# 6b. Official Microsoft Learn App Service alert trigger (signature-based)
+curl "https://umbrella-api-nl.azurewebsites.net/This_Will_Generate_ASC_Alert"
+
+# 7. SQL injection (triggers Defender for Databases alert; expect HTTP 500)
 curl -X POST "$APIM/words" -H "Content-Type: application/json" \
   -d "{'word':"'; DROP TABLE Words;--"}"
 ```
