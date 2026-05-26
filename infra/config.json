@@ -1,7 +1,0 @@
-{
-  "maxWordsDisplay": 100,
-  "wordCloudRefreshSeconds": 3,
-  "minWordLength": 2,
-  "maxWordLength": 50,
-  "colorScheme": "iris"
-}

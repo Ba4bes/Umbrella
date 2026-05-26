@@ -196,42 +196,8 @@
       return data.map(w => `${w.text}:${w.count}`).join(',');
     }
 
+    const brandColors = ['#7C63A8', '#A688D4', '#3AAFA9', '#60CECA', '#C47F55'];
 
-     // Configuration loaded from backend (defaults if fetch fails)
-       // Limit to maxWordsDisplay from configuration
-       const limitedEntries = entries.slice(0, appConfig.maxWordsDisplay);
-     let appConfig = {
-       maxWordsDisplay: 100,
-       wordCloudRefreshSeconds: 3,
-       const maxCount = limitedEntries[0].count;
-       const minCount = limitedEntries[limitedEntries.length - 1].count;
-       colorScheme: 'iris',
-     };
-       const list = limitedEntries.map(({ text, count }) => {
-     // Color schemes available
-     const colorSchemes = {
-       iris:  ['#7C63A8', '#A688D4', '#3AAFA9', '#60CECA', '#C47F55'],
-       teal:  ['#3AAFA9', '#60CECA', '#7C63A8', '#A688D4', '#C47F55'],
-       warm:  ['#C47F55', '#A688D4', '#7C63A8', '#3AAFA9', '#60CECA'],
-       // Get colors from configured color scheme
-       const colors = colorSchemes[appConfig.colorScheme] || colorSchemes.iris;
-     };
-
-     const brandColors = colorSchemes[appConfig.colorScheme] || colorSchemes.iris;
-
-     // Load configuration from backend
-     async function loadConfig() {
-         color: () => colors[Math.floor(Math.random() * colors.length)],
-         const resp = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
-         if (resp.ok) {
-           const config = await resp.json();
-           appConfig = { ...appConfig, ...config };
-           console.log('Configuration loaded:', appConfig);
-         }
-       } catch (err) {
-         console.log('Using default configuration:', err.message);
-       }
-     }
     // Font size range (px) tuned for up to ~50 entries:
     // the most-voted word gets MAX_FONT, the least-voted gets MIN_FONT.
     const MIN_FONT = 18;
@@ -311,10 +277,7 @@
 
     // Initial load + 3-second polling
     fetchWords();
-     // Load configuration first, then start polling with configured interval
-     await loadConfig();
-     fetchWords();
-     setInterval(fetchWords, appConfig.wordCloudRefreshSeconds * 1000);
+    setInterval(fetchWords, 3000);
   </script>
 </body>
 </html>

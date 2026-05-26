@@ -255,20 +255,6 @@
       const word = input.value.trim();
       if (!word) return;
 
-       // Enforce configuration constraints
-       if (word.length < appConfig.minWordLength) {
-         statusEl.textContent = `Word must be at least ${appConfig.minWordLength} characters.`;
-         statusEl.className = 'error';
-         btn.disabled = false;
-         return;
-       }
-       if (word.length > appConfig.maxWordLength) {
-         statusEl.textContent = `Word cannot exceed ${appConfig.maxWordLength} characters.`;
-         statusEl.className = 'error';
-         btn.disabled = false;
-         return;
-       }
-
       btn.disabled = true;
       statusEl.textContent = 'Submitting…';
       statusEl.className = '';
@@ -292,31 +278,6 @@
         btn.disabled = false;
       }
     });
-
-     // Configuration loaded from backend
-     let appConfig = {
-       minWordLength: 2,
-       maxWordLength: 50,
-     };
-
-     // Load configuration from backend
-     async function loadConfig() {
-       try {
-         const resp = await fetch(`${API_BASE}/config`, { cache: 'no-store' });
-         if (resp.ok) {
-           const config = await resp.json();
-           appConfig = { ...appConfig, ...config };
-           // Update input field max length based on config
-           input.maxLength = appConfig.maxWordLength;
-           console.log('Configuration loaded:', appConfig);
-         }
-       } catch (err) {
-         console.log('Using default configuration:', err.message);
-       }
-     }
-
-     // Load configuration on page load
-     loadConfig();
   </script>
 </body>
 </html>

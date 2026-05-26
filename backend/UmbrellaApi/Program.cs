@@ -17,10 +17,6 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
- // ── Azure Storage Configuration Service ────────────────────────────────────
- // Reads app configuration from config.json in blob storage (broken baseline).
- // In the broken baseline, the blob is publicly readable (misconfig #1).
- builder.Services.AddSingleton<AppConfigService>();
 
 // ── CORS: allow the Static Web App origin ──────────────────────────────────
 builder.Services.AddCors(options =>
@@ -51,27 +47,9 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
- // Load app configuration from blob storage (config.json in assets container)
- try
- {
-     var configService = app.Services.GetRequiredService<AppConfigService>();
-     await configService.LoadConfigAsync();
- }
- catch (Exception ex)
- {
-     // If config loading fails, app continues with default values
-     Console.WriteLine($"Warning: Failed to load config.json from blob storage: {ex.Message}");
- }
 // ── GET /health ───────────────────────────────────────────────────────────
 app.MapGet("/health", () =>
     Results.Ok(new { status = "healthy", utc = DateTime.UtcNow }));
-
- // ── GET /config ───────────────────────────────────────────────────────────
- // Returns the current app configuration loaded from blob storage.
- // In the broken baseline, the config.json is publicly readable, allowing anyone
- // to download the configuration and potentially modify it.
- app.MapGet("/config", (AppConfigService configService) =>
-     Results.Ok(configService.GetConfig()));
 
 // ── GET /words ────────────────────────────────────────────────────────────
 app.MapGet("/words", async (WordsDbContext db) =>
@@ -184,73 +162,3 @@ public class WordsDbContext : DbContext
         });
     }
 }
-
- // ── Application Configuration ────────────────────────────────────────────────
- public class AppConfig
- {
-     public int MaxWordsDisplay { get; set; } = 100;
-     public int WordCloudRefreshSeconds { get; set; } = 3;
-     public int MinWordLength { get; set; } = 2;
-     public int MaxWordLength { get; set; } = 50;
-     public string ColorScheme { get; set; } = "iris";
- }
-
- // ── Application Configuration Service ─────────────────────────────────────
- // Reads config.json from blob storage (assets container).
- // In the broken baseline, the blob is publicly readable.
- // In the fixed baseline, access is restricted via Managed Identity.
- // ── Application Configuration Service ─────────────────────────────────
- // Reads config.json from blob storage (assets container).
- // In the broken baseline, the blob is publicly readable.
- // In the fixed baseline, access is restricted via Managed Identity.
- public class AppConfigService
- {
-     private AppConfig _config = new();
-
-     public async Task LoadConfigAsync()
-     {
-         try
-         {
-             // BROKEN baseline: The blob is publicly readable (misconfig #1: publicAccess = 'Blob').
-             // FIXED baseline: Access restricted via Managed Identity to the storage account.
-             // Try to read config.json from blob storage.
-             // Storage account name is resolved from the STORAGE_ACCOUNT_NAME environment variable,
-             // set by the Bicep template. Falls back to HTTP public access in broken baseline.
-             var storageAccountName = Environment.GetEnvironmentVariable("STORAGE_ACCOUNT_NAME") ?? "umbrellast";
-             var blobUri = new Uri($"https://{storageAccountName}.blob.core.windows.net/assets/config.json");
-
-             // Try with DefaultAzureCredential (Managed Identity in fixed, public HTTP fallback in broken)
-             try
-             {
-                 var blobClient = new Azure.Storage.Blobs.BlobClient(blobUri, new Azure.Identity.DefaultAzureCredential());
-                 var download = await blobClient.DownloadAsync();
-                 using var reader = new System.IO.StreamReader(download.Value.Content);
-                 var json = await reader.ReadToEndAsync();
-                 var loaded = Newtonsoft.Json.JsonConvert.DeserializeObject<AppConfig>(json);
-                 if (loaded != null)
-                     _config = loaded;
-             }
-             catch (Azure.Identity.AuthenticationFailedException)
-             {
-                 // Managed Identity failed (broken baseline has no identity), fall back to public HTTP
-                 Console.WriteLine("Managed Identity unavailable, attempting public blob access...");
-                 using var httpClient = new HttpClient();
-                 var response = await httpClient.GetAsync(blobUri);
-                 if (response.IsSuccessStatusCode)
-                 {
-                     var json = await response.Content.ReadAsStringAsync();
-                     var loaded = Newtonsoft.Json.JsonConvert.DeserializeObject<AppConfig>(json);
-                     if (loaded != null)
-                         _config = loaded;
-                 }
-             }
-         }
-         catch (Exception ex)
-         {
-             Console.WriteLine($"Failed to load config.json: {ex.Message}");
-             // Continue with default configuration
-         }
-     }
-
-     public AppConfig GetConfig() => _config;
- }
