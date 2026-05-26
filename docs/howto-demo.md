@@ -310,7 +310,13 @@ All plans must be on **before** the demo triggers will generate alerts.
 | Defender CSPM | **On** |
 
 4. Click **Save**.
-5. Under **DevOps security**, confirm the GitHub environment from step 3d is connected.
+5. **Verify `Api` is actually Standard** (this plan is a frequent miss — its toggle is separate from "Databases" and starts as a 30-day Free trial):
+   ```powershell
+   az security pricing show --name Api --query "{name:name, tier:pricingTier}" -o table
+   # If tier=Free:
+   az security pricing create --name Api --tier Standard
+   ```
+6. Under **DevOps security**, confirm the GitHub environment from step 3d is connected. If the connector appears with `kind=null` / `env=null` (a stub from an aborted wizard), delete and recreate it.
 
 ### 5a. Confirm the APIM API is onboarded to Defender for APIs
 
@@ -529,6 +535,8 @@ curl "https://umbrella-api-nl.azurewebsites.net/This_Will_Generate_ASC_Alert"
 ### 11b. Narrative trigger — the `/debug/exec` endpoint
 
 Use this to *show the misconfig* even if the alert from 11a has not arrived yet. The command output proves the backend is exploitable; whether Defender for App Service raises a runtime alert on the spawned shell on a Linux plan is best-effort and not guaranteed within demo timeframes.
+
+> **Note:** On Linux App Service plans, Defender does NOT emit a runtime alert for every spawned process. It looks for *suspicious patterns* — pipe-to-shell from a download, base64-decode-then-exec, known miner/reverse-shell binaries, writes to `/tmp/` followed by execution. Demoing `whoami`, `ls`, or `cat /etc/passwd` will show that the endpoint *works* (response body proves arbitrary execution) but typically will not fire a Defender alert. Always run 11a first as the guaranteed signature trigger; treat 11b as the misconfig walkthrough.
 
 1. Hit the debug endpoint:
    ```powershell
@@ -768,6 +776,79 @@ Latencies below match Microsoft Learn defaults; expect the upper end on a brand-
 ---
 
 ## Troubleshooting
+
+**No alerts in Defender for Cloud after running demo triggers (most common)**
+
+Check the live state with the diagnostic commands below before blaming alert latency. The most frequent failures observed during a fresh deploy:
+
+- **Defender for APIs is still `Free`** (30-day trial, not consumed). Even though step 5 enables the other plans, the `Api` plan is a separate toggle and is often missed. Verify and fix:
+  ```powershell
+  az security pricing show --name Api --query "{name:name, tier:pricingTier}" -o table
+  # If tier=Free, enable it:
+  az security pricing create --name Api --tier Standard
+  ```
+  After flipping to Standard you still need step 5a (onboard `umbrella-api`) and **~30 min** of baseline traffic before any API anomaly alert can fire.
+
+- **APIM API not onboarded.** Confirm via REST:
+  ```powershell
+  $sub = az account show --query id -o tsv
+  az rest --method GET --url "https://management.azure.com/subscriptions/$sub/resourceGroups/rg-umbrella-demo/providers/Microsoft.ApiManagement/service/umbrella-apim/apis/umbrella-api/providers/Microsoft.Security/apiCollections?api-version=2023-11-15"
+  ```
+  A `404 Not Found` means the API is NOT onboarded — follow step 5a.
+
+- **SQL auditing is `Disabled`.** Defender for SQL ATP fires alerts on Azure SQL DB without auditing, but enabling auditing to Log Analytics makes the alert investigation usable. Check and enable:
+  ```powershell
+  az sql server audit-policy show -g rg-umbrella-demo -n umbrella-sql --query state -o tsv
+  ```
+
+- **Shell-exec demo (`/debug/exec`) ran with a benign command.** App Service Defender on Linux detects *suspicious process patterns*, not every `Process.Start`. `whoami` / `ls` / `cat /etc/passwd` will return data but rarely raise a runtime alert. Use the documented signature trigger from step 11a (`/This_Will_Generate_ASC_Alert`) as the guaranteed alert, and reserve `/debug/exec` for the narrative.
+
+**Defender for DevOps GitHub connector exists but no findings appear in the DevOps blade**
+
+First confirm the connector is actually configured (not just present as a name). The interesting fields live under `properties`:
+
+```powershell
+$sub = az account show --query id -o tsv
+az rest --method GET --url "https://management.azure.com/subscriptions/$sub/providers/Microsoft.Security/securityConnectors?api-version=2024-08-01-preview" `
+  --query "value[].{name:name, env:properties.environmentName, type:properties.environmentData.environmentType, offerings:properties.offerings[].offeringType}"
+```
+
+A healthy connector returns something like:
+```json
+{ "name": "GH-Ba4bes", "env": "Github", "type": "GithubScope", "offerings": ["CspmMonitorGithub"] }
+```
+
+If those fields are populated, the connector is **fine — do not delete it**. The usual reasons findings still don't appear:
+
+- The connector only carries `CspmMonitorGithub`. Code-scanning / Dependabot / secret findings need the **GitHub Advanced Security** offering added — open the connector in **Defender for Cloud → Environment settings → `<connector-name>` → Settings** and enable the GHAS plan (this in turn requires GHAS on the repo, see section 12a).
+- Defender for DevOps surfaces alerts from the **default branch**. Your findings live on `broken`; merge to `main` (or change the repo's default branch temporarily) before the next sync.
+- The connector polls roughly **once every 24 h**. Fresh findings typically take up to a day to appear after a push.
+
+Only recreate the connector if the `env` / `environmentType` / `hierarchyIdentifier` fields actually come back `null` — that indicates a wizard aborted before completing the GitHub App authorization.
+
+**GitHub Security tab shows zero code-scanning alerts but the workflow runs are green**
+
+The Code Scanning UI defaults to alerts on the **default branch** (`main` in this repo, which uses `fixed.bicep` and has no findings). Alerts on the `broken` branch exist and are accessible via:
+
+- **GitHub UI:** open the **Security → Code scanning** page and change the **Branch** filter from `main` to `broken`.
+- **GitHub CLI:**
+  ```powershell
+  gh api 'repos/Ba4bes/Umbrella/code-scanning/alerts?ref=refs/heads/broken&state=open&per_page=20' `
+    --jq '.[] | {rule:.rule.id, sev:.rule.severity, path:.most_recent_instance.location.path, tool:.tool.name}'
+  ```
+  Expected on the broken branch: CodeQL `cs/sql-injection` and `cs/command-line-injection` in `backend/UmbrellaApi/Program.cs`, plus ~20 Checkov rules on `infra/broken.bicep`.
+
+For an on-stage demo, either toggle the branch filter to `broken`, or open a PR `broken → main` so the findings land on the default branch (and `dependency-review` fires).
+
+**`Newtonsoft.Json 12.0.3` CVE does not appear as a Dependabot alert**
+
+Dependabot alerts default to **disabled** for newly created repos. Confirm:
+
+```powershell
+gh api repos/Ba4bes/Umbrella --jq '.security_and_analysis'
+```
+
+If `dependabot_security_updates.status` is `disabled`, enable it in **Settings → Code security → Dependabot alerts** (and **Dependabot security updates**). The Newtonsoft.Json CVE-2024-21907 alert appears within ~15 minutes after enabling. Note that the `dependency-review` job in `security.yml` is intentionally gated on `pull_request` (the action does not support `push`); to surface the CVE through that path, open a PR from `broken` to `main`.
 
 **App Service returns 503 on startup**
 - Check that `DOTNETCORE|10.0` is available in the chosen region: `az webapp list-runtimes --os linux | grep DOTNETCORE`.

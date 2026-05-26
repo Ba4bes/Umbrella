@@ -105,11 +105,26 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
           value: '@Microsoft.KeyVault(SecretUri=${kv.properties.vaultUri}secrets/SqlConnectionString/)'
         }
         // ENABLE_DEBUG_EXEC is intentionally absent in the fixed build
+         {
+           name: 'STORAGE_ACCOUNT_NAME'
+           value: storageName
+         }
       ]
     }
   }
 }
 
+   // FIX #8 / Configuration: Grant App Service MI read access to Storage Account
+   // Allows the app to securely read config.json using DefaultAzureCredential
+   resource appStorageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+     scope: storage
+     name: guid(app.id, 'Storage Blob Data Reader')
+     properties: {
+       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1') // Storage Blob Data Reader
+       principalId: app.identity.principalId
+       principalType: 'ServicePrincipal'
+     }
+   }
 // ── App Service diagnostic settings → Log Analytics ──────────────────────
 resource appDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'send-to-law'
@@ -220,6 +235,16 @@ resource assetsContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
   }
 }
 
+ // Deploy config.json blob to assets container
+ // FIX #1: In the fixed baseline, the container is private and only the App Service
+ // Managed Identity can read the configuration via Azure.Storage.Blobs SDK.
+ resource configJsonBlob 'Microsoft.Storage/storageAccounts/blobServices/containers/blobs@2023-05-01' = {
+   parent: assetsContainer
+   name: 'config.json'
+   properties: {
+     contentType: 'application/json'
+   }
+ }
 // ── Storage diagnostic settings → Log Analytics ───────────────────────────
 resource storageDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'send-to-law'
