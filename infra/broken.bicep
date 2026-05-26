@@ -6,11 +6,6 @@
 //   #2  SQL firewall 0.0.0.0–255.255.255.255
 //   #3  Connection string as plain App Service app setting
 //   #5  APIM no rate limiting, subscriptionRequired = false
-       {
-         // Storage account name for config blob reading
-         name: 'STORAGE_ACCOUNT_NAME'
-         value: storageName
-       }
 //   #6  App Service httpsOnly = false, minTlsVersion = '1.0'
 //   #7  No Log Analytics workspace / no diagnostic settings
 //   #8  App Service system-assigned identity disabled
