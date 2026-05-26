@@ -595,7 +595,7 @@ If you see *“Code scanning alerts • Disabled — Advanced Security is only a
 
 **Steps:**
 
-1. In GitHub, open **Security → Code scanning alerts**.
+1. In GitHub, open the **Security** tab, then select **Code scanning** from the left sidebar.
    - Show the CodeQL finding: `Database query built from user-controlled sources` in [backend/UmbrellaApi/Program.cs](../backend/UmbrellaApi/Program.cs).
 
    Or via the GitHub CLI:
@@ -605,7 +605,7 @@ If you see *“Code scanning alerts • Disabled — Advanced Security is only a
      --jq '.[] | {number,rule_id:.rule.id,severity:.rule.severity,file:.most_recent_instance.location.path}'
    ```
 
-2. Open **Security → Dependabot alerts**.
+2. Open the **Security** tab and select **Dependabot** from the left sidebar.
    - Show the `Newtonsoft.Json 12.0.3` alert for CVE-2024-21907 (ReDoS, high severity).
    - Note the fix: upgrade to ≥ 13.0.1.
 
@@ -616,7 +616,7 @@ If you see *“Code scanning alerts • Disabled — Advanced Security is only a
      --jq '.[] | {number,package:.dependency.package.name,severity:.security_vulnerability.severity,summary:.security_advisory.summary}'
    ```
 
-3. Open **Security → Code scanning alerts** and filter by tool `MSDO` (or `Checkov`).
+3. Open the **Security** tab, select **Code scanning** from the left sidebar, and filter by tool `MSDO` (or `Checkov`).
    - Show the IaC findings on [infra/broken.bicep](../infra/broken.bicep):
      - Public blob container access.
      - SQL firewall open to `0.0.0.0/0`.
