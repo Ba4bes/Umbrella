@@ -14,6 +14,8 @@
 // =============================================================================
 
 @description('Short prefix for all resource names (lowercase, no hyphens).')
+@maxLength(22)
+@minLength(2)
 param prefix string = 'umbrella'
 
 @description('Azure region for all resources.')
@@ -40,7 +42,7 @@ var appName       = '${prefix}-api-nl'
 var swaName       = '${prefix}-swa'
 var sqlServerName = '${prefix}-sql'
 var sqlDbName     = 'UmbrellaDb'
-var storageName   = '${toLower(replace(prefix, '-', ''))}st'
+var storageName   = '${toLower(replace(prefix, '-', ''))}stg'
 var containerName = 'assets'
 var kvName        = '${prefix}-kv123'
 var apimName      = '${prefix}-apim'
@@ -214,8 +216,8 @@ resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
   name: apimName
   location: location
   sku: {
-    name: 'Developer'
-    capacity: 1
+    name: 'Consumption'
+    capacity: 0
   }
   properties: {
     publisherEmail: apimPublisherEmail

@@ -36,18 +36,18 @@ param logRetentionDays int = 30
 param sqlLocation string = 'swedencentral'
 
 // ── Resource names ────────────────────────────────────────────────────────
-var planName      = '${prefix}-plan'
-var appName       = '${prefix}-api-nl'
-var swaName       = '${prefix}-swa'
+var planName = '${prefix}-plan'
+var appName = '${prefix}-api-nl'
+var swaName = '${prefix}-swa'
 var sqlServerName = '${prefix}-sql'
-var sqlDbName     = 'UmbrellaDb'
-var storageName   = '${toLower(replace(prefix, '-', ''))}st'
+var sqlDbName = 'UmbrellaDb'
+var storageName = '${toLower(replace(prefix, '-', ''))}stg'
 var containerName = 'assets'
-var kvName        = '${prefix}-kv123'
-var apimName      = '${prefix}-apim'
-var lawName       = '${prefix}-law'
+var kvName = '${prefix}-kv123'
+var apimName = '${prefix}-apim'
+var lawName = '${prefix}-law'
 var apimPublisherEmail = 'demo@example.com'
-var apimPublisherName  = 'Umbrella Demo'
+var apimPublisherName = 'Umbrella Demo'
 
 // ── Log Analytics Workspace ───────────────────────────────────────────────
 // FIX #7: centralised workspace for all diagnostic logs
@@ -117,14 +117,14 @@ resource appDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   properties: {
     workspaceId: law.id
     logs: [
-      { category: 'AppServiceHTTPLogs';       enabled: true }
-      { category: 'AppServiceConsoleLogs';     enabled: true }
-      { category: 'AppServiceAppLogs';         enabled: true }
-      { category: 'AppServiceAuditLogs';       enabled: true }
-      { category: 'AppServicePlatformLogs';    enabled: true }
+      { category: 'AppServiceHTTPLogs', enabled: true }
+      { category: 'AppServiceConsoleLogs', enabled: true }
+      { category: 'AppServiceAppLogs', enabled: true }
+      { category: 'AppServiceAuditLogs', enabled: true }
+      { category: 'AppServicePlatformLogs', enabled: true }
     ]
     metrics: [
-      { category: 'AllMetrics'; enabled: true }
+      { category: 'AllMetrics', enabled: true }
     ]
   }
 }
@@ -180,15 +180,15 @@ resource sqlDbDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = 
   properties: {
     workspaceId: law.id
     logs: [
-      { category: 'SQLInsights';          enabled: true }
-      { category: 'AutomaticTuning';      enabled: true }
-      { category: 'QueryStoreRuntimeStatistics'; enabled: true }
-      { category: 'Errors';               enabled: true }
-      { category: 'DatabaseWaitStatistics'; enabled: true }
-      { category: 'SQLSecurityAuditEvents'; enabled: true }
+      { category: 'SQLInsights', enabled: true }
+      { category: 'AutomaticTuning', enabled: true }
+      { category: 'QueryStoreRuntimeStatistics', enabled: true }
+      { category: 'Errors', enabled: true }
+      { category: 'DatabaseWaitStatistics', enabled: true }
+      { category: 'SQLSecurityAuditEvents', enabled: true }
     ]
     metrics: [
-      { category: 'Basic'; enabled: true }
+      { category: 'Basic', enabled: true }
     ]
   }
 }
@@ -201,7 +201,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   sku: { name: 'Standard_LRS' }
   kind: 'StorageV2'
   properties: {
-    allowBlobPublicAccess: false   // FIX #1
+    allowBlobPublicAccess: false // FIX #1
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
   }
@@ -227,12 +227,12 @@ resource storageDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' 
   properties: {
     workspaceId: law.id
     logs: [
-      { category: 'StorageRead';   enabled: true }
-      { category: 'StorageWrite';  enabled: true }
-      { category: 'StorageDelete'; enabled: true }
+      { category: 'StorageRead', enabled: true }
+      { category: 'StorageWrite', enabled: true }
+      { category: 'StorageDelete', enabled: true }
     ]
     metrics: [
-      { category: 'Transaction'; enabled: true }
+      { category: 'Transaction', enabled: true }
     ]
   }
 }
@@ -292,11 +292,11 @@ resource kvDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   properties: {
     workspaceId: law.id
     logs: [
-      { category: 'AuditEvent';            enabled: true }
-      { category: 'AzurePolicyEvaluationDetails'; enabled: true }
+      { category: 'AuditEvent', enabled: true }
+      { category: 'AzurePolicyEvaluationDetails', enabled: true }
     ]
     metrics: [
-      { category: 'AllMetrics'; enabled: true }
+      { category: 'AllMetrics', enabled: true }
     ]
   }
 }
@@ -307,8 +307,8 @@ resource apim 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
   name: apimName
   location: location
   sku: {
-    name: 'Developer'
-    capacity: 1
+    name: 'Consumption'
+    capacity: 0
   }
   properties: {
     publisherEmail: apimPublisherEmail
@@ -399,22 +399,22 @@ resource apimDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   properties: {
     workspaceId: law.id
     logs: [
-      { category: 'GatewayLogs'; enabled: true }
+      { category: 'GatewayLogs', enabled: true }
     ]
     metrics: [
-      { category: 'AllMetrics'; enabled: true }
+      { category: 'AllMetrics', enabled: true }
     ]
   }
 }
 
 // ── Outputs ───────────────────────────────────────────────────────────────
-output appName           string = app.name
-output appUrl            string = 'https://${app.properties.defaultHostName}'
-output apimGatewayUrl    string = apim.properties.gatewayUrl
-output swaName           string = swa.name
-output swaDefaultHost    string = swa.properties.defaultHostname
-output sqlServerFqdn     string = sqlServer.properties.fullyQualifiedDomainName
-output storageAccName    string = storage.name
-output kvUri             string = kv.properties.vaultUri
-output lawId             string = law.id
+output appName string = app.name
+output appUrl string = 'https://${app.properties.defaultHostName}'
+output apimGatewayUrl string = apim.properties.gatewayUrl
+output swaName string = swa.name
+output swaDefaultHost string = swa.properties.defaultHostname
+output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
+output storageAccName string = storage.name
+output kvUri string = kv.properties.vaultUri
+output lawId string = law.id
 output appManagedIdentity string = app.identity.principalId
